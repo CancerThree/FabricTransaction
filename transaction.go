@@ -22,15 +22,17 @@ const (
 	ASSET_HAS_NOT_SPENT = "N"
 )
 
+//TODO:add struct of all tx info
+
 type AccountLog struct { //私钥加密
-	LogSerialNum string `json:"logSerialNum"`
-	ModUser      string `json:"modUser,omitempty"`
-	Timestamp    string `json:"timestamp,omitempty"`
-	TxId         string `json:"txId,omitempty"`
-	RemoteAddr   string `json:"inAddr,omitempty"`
-	Amount       string `json:"amount,omitempty"`
-	OpeType      string `json:"opeType,omitempty"`
-	LogInfo      string `json:"logInfo,omitempty"`
+	LogSerialNum string  `json:"logSerialNum"`
+	ModUser      string  `json:"modUser,omitempty"`
+	Timestamp    string  `json:"timestamp,omitempty"`
+	TxId         string  `json:"txId,omitempty"`
+	RemoteAddr   string  `json:"inAddr,omitempty"`
+	Amount       float64 `json:"amount,omitempty"`
+	OpeType      string  `json:"opeType,omitempty"`
+	LogInfo      string  `json:"logInfo,omitempty"`
 }
 
 type Account struct {
@@ -41,11 +43,22 @@ type Account struct {
 	EncryptKey string   `json:"encryptKey"`
 }
 
+type Assets struct {
+	AccountID      string `json:"accountId,omitempty"`
+	EncryptAssetID string `json:""`
+}
+
+type AccountRelAsset struct {
+	AccountAddr        string
+	AssetEncryptedAddr string
+}
+
 type Asset struct {
 	Addr       string  `json:"addr,omitempty"`
 	Value      float64 `json:"value"`
 	AttachHash string  `json:"attachHash,omitempty"`
 	HasSpent   string  `json:"hasSpent,omitempty"`
+	//TODO: add field of type
 }
 
 type Transaction struct {
@@ -70,7 +83,7 @@ func (t *AbsChaincode) getUnsignKey(stub shim.ChaincodeStubInterface) ([]byte, e
 
 	err = json.Unmarshal(val, &account)
 	if err != nil {
-		return nil, errors.New("account unmarshal failed")
+		return nil, errors.New("account unmarshal failed:" + t.getAccoutAddr(stub))
 	}
 
 	return []byte(account.UnsignKey), nil
@@ -109,11 +122,7 @@ func (t *AbsChaincode) unsignEncryptData(stub shim.ChaincodeStubInterface, signe
 }
 
 func (t *AbsChaincode) encryptStrData(stub shim.ChaincodeStubInterface, mspId string, data string) (string, error) {
-	str, err := t.encryptByteData(stub, mspId, []byte(data))
-	if err != nil {
-		return nil, err
-	}
-	return str, nil
+	return t.encryptByteData(stub, mspId, []byte(data))
 }
 
 //使用机构加密密钥进行私有信息加密
@@ -121,30 +130,30 @@ func (t *AbsChaincode) encryptByteData(stub shim.ChaincodeStubInterface, mspId s
 	// 查询机构加密密钥
 	encryptKey, err := t.getEncryptKey(stub, mspId)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	//解析提取密钥
 	block, _ := pem.Decode(encryptKey)
 	if block == nil {
-		return nil, errors.New("decode encrypt key failed, encryptKey bytes:" + string(encryptKey))
+		return "", errors.New("decode encrypt key failed, encryptKey bytes:" + string(encryptKey))
 	}
 	pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		return nil, errors.New("parse key failed:" + err.Error())
+		return "", errors.New("parse key failed:" + err.Error())
 	}
 	pub := pubInterface.(*rsa.PublicKey)
 
 	//加密
 	encryptedData, err := rsa.EncryptPKCS1v15(rand.Reader, pub, data)
 	if err != nil {
-		return nil, errors.New("encrypt failed:" + err.Error())
+		return "", errors.New("encrypt failed:" + err.Error())
 	}
 
 	//base64编码
 	encryptStr := base64.StdEncoding.EncodeToString(encryptedData)
 
-	return encryptedStr, nil
+	return encryptStr, nil
 }
 
 //获取机构私有信息加密密钥
@@ -157,7 +166,7 @@ func (t *AbsChaincode) getEncryptKey(stub shim.ChaincodeStubInterface, accountId
 
 	err = json.Unmarshal(val, &account)
 	if err != nil {
-		return nil, errors.New("account unmarshal failed")
+		return nil, errors.New("account unmarshal failed:" + (AccountPreifx + accountId))
 	}
 
 	return []byte(account.EncryptKey), nil
@@ -171,7 +180,7 @@ func getShaBase64Str(str string) (string, error) {
 		return "", err
 	}
 	hashByte := hash.Sum(nil)
-	return base64.StdEncoding.EncodeToString(hashByte)
+	return base64.StdEncoding.EncodeToString(hashByte), nil
 }
 
 /* Name: InitAccount
@@ -184,34 +193,42 @@ func (t *AbsChaincode) InitAccount(stub shim.ChaincodeStubInterface, args []stri
 		return shim.Error("invalid argument")
 	}
 
-	operator, err := getMspId(stub)
-	if err != nil {
-		return shim.Error("get mspid failed:" + err.Error())
-	}
+	// operator, err := getMspId(stub)
+	// if err != nil {
+	// 	return shim.Error("get mspid failed:" + err.Error())
+	// }
 
-	err = json.Unmarshal([]byte(args[0]), &account)
+	err := json.Unmarshal([]byte(args[0]), &account)
 	if err != nil {
 		return shim.Error("transfer to json failed")
 	}
 
 	account.Addr = t.getAccoutAddr(stub)
 	account.Assets = []string{}
-	if len(account.UnsignKey) == 0 {
+	if isEmptyStr(account.UnsignKey) {
 		return shim.Error("unsignkey is missing")
 	}
-	if len(account.EncryptKey) == 0 {
+	if isEmptyStr(account.EncryptKey) {
 		return shim.Error("EncryptKey is missing")
 	}
 
-	accountLog := AccountLog{
-		ModUser:    operator,
-		Timestamp:  "",
-		TxId:       stub.GetTxID(),
-		RemoteAddr: "",
-		Amount:     "",
-		OpeType:    "new account",
-		LogInfo:    ""}
-	account.Log = append(account.Log, &accountLog)
+	// bytes, err := stub.GetState(account.Addr)
+	// if bytes != nil {
+	// 	return shim.Error("account exist already")
+	// }
+
+	// accountLog := AccountLog{
+	// 	Timestamp:  "",
+	// 	RemoteAddr: "",
+	// 	Amount:     0.0,
+	// 	OpeType:    "new account",
+	// 	LogInfo:    ""}
+
+	// err = t.storeAccountLog(stub, &account, accountLog)
+	// if err != nil {
+	// 	return shim.Error(err.Error())
+	// }
+
 	accountByte, _ := json.Marshal(account)
 	err = stub.PutState(account.Addr, accountByte)
 	if err != nil {
@@ -223,15 +240,15 @@ func (t *AbsChaincode) InitAccount(stub shim.ChaincodeStubInterface, args []stri
 
 // 判断asset是否可进行转让
 func canTransfer(asset Asset, mspId string) (bool, error) {
-	if asset.Amount <= 0 {
+	if asset.Value <= 0.0 {
 		return false, errors.New("invalid asset, system error")
 	}
 
 	if asset.HasSpent == ASSET_HAS_SPENT {
-		return false, errors.New("asset has spent")
+		return false, nil
 	}
 
-	hashSign, err := getShaBase64Str(asset.addr + mspId)
+	hashSign, err := getShaBase64Str(asset.Addr + mspId)
 	if err != nil {
 		return false, errors.New("calc hash failed:" + err.Error())
 	}
@@ -251,7 +268,7 @@ func (t *AbsChaincode) getAccoutAddr(stub shim.ChaincodeStubInterface) string {
 
 func (t *AbsChaincode) storeAccountLog(stub shim.ChaincodeStubInterface, account *Account, log AccountLog) error {
 	txId := stub.GetTxID()
-	mspId := getMspId(stub)
+	mspId, _ := getMspId(stub)
 	// 填公共获取方法的字段
 	log.LogSerialNum = LOG_ID_PREFIX + txId
 	log.ModUser = mspId
@@ -295,7 +312,9 @@ func sortAndCountByAmount(assets *[]Asset) float64 {
 				assetArray[j] = tempAsset
 			}
 		}
-		sum += assetArray[i].Value
+		if assetArray[i].HasSpent == ASSET_HAS_NOT_SPENT {
+			sum += assetArray[i].Value
+		}
 	}
 	return sum
 }
@@ -324,30 +343,43 @@ func getAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]Asset
 }
 
 //进行asset的转移
-func (t *AbsChaincode) transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, amount float64, newAssetAddrs []string, remoteMspId string) error {
+func (t *AbsChaincode) transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transaction) error {
 	mspId, err := getMspId(stub)
 	if err != nil {
 		return errors.New("get mspId failed:" + err.Error())
 	}
 
-	transferAmount := amount
-	if amount <= 0 {
+	transferAmount := tx.Amount
+	if transferAmount <= 0 {
 		return errors.New("invalid amount: amount <=0: ")
+	}
+
+	//验证所用地址是否合法
+	val, err := stub.GetState(tx.NewAddr[0])
+	if val != nil {
+		return errors.New("addr has been used:" + tx.NewAddr[0])
+	}
+	val, err = stub.GetState(tx.NewAddr[1])
+	if val != nil {
+		return errors.New("addr has been used:" + tx.NewAddr[1])
 	}
 
 	// 从小到大修改asset
 	for i := 0; i < len(assets); i++ {
-		if amount <= 0 {
+		if transferAmount <= 0 {
 			break
 		}
 
-		_, err := canTransfer(assets[i], mspId)
+		canTrans, err := canTransfer(assets[i], mspId)
 		if err != nil {
 			return err
 		}
+		if !canTrans {
+			continue
+		}
 
 		assets[i].HasSpent = "Y"
-		amount -= assets[i].Value
+		tx.Amount -= assets[i].Value
 
 		assetBytes, err := json.Marshal(assets[i])
 		if err != nil {
@@ -356,22 +388,15 @@ func (t *AbsChaincode) transferAssets(stub shim.ChaincodeStubInterface, assets [
 
 		stub.PutState(assets[i].Addr, assetBytes)
 	}
-	val, err := stub.GetState(newAssetAddrs[0])
-	if val != nil {
-		return errors.New("addr has been used:" + newAssetAddrs[0])
-	}
-	val, err = stub.GetState(newAssetAddrs[1])
-	if val != nil {
-		return errors.New("addr has been used:" + newAssetAddrs[1])
-	}
 
-	attchHash := sha256.New()
-	attchHash.Write([]byte(newAssetAddrs[0] + remoteMspId))
-	sign := attchHash.Sum(nil)
-	hashSign := base64.StdEncoding.EncodeToString(sign)
+	//新建asset并存储
+	hashSign, err := getShaBase64Str(tx.NewAddr[0] + tx.To)
+	if err != nil {
+		return err
+	}
 
 	transferAsset := Asset{
-		Addr:       newAssetAddrs[0],
+		Addr:       tx.NewAddr[0],
 		Value:      transferAmount,
 		AttachHash: hashSign,
 		HasSpent:   "N"}
@@ -379,50 +404,85 @@ func (t *AbsChaincode) transferAssets(stub shim.ChaincodeStubInterface, assets [
 	if err != nil {
 		return errors.New("marshal new asset failed")
 	}
-	stub.PutState(newAssetAddrs[0], transferAssetByte)
+	stub.PutState(tx.NewAddr[0], transferAssetByte)
 
-	encryptKey, err := t.getEncryptKey(stub, remoteMspId)
-	block, _ := pem.Decode(encryptKey)
-	if block == nil {
-		return errors.New("get encrypt key failed, err:" + err.Error())
-	}
-	pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return err
-	}
-	pub := pubInterface.(*rsa.PublicKey)
-	data, err := rsa.EncryptPKCS1v15(rand.Reader, pub, []byte(newAssetAddrs[0]))
+	// 加密asset地址并且将asset加入account
+	encryptAssetAddr, err := t.encryptStrData(stub, tx.To, tx.NewAddr[0])
 	if err != nil {
 		return err
 	}
 
-	afterData := base64.StdEncoding.EncodeToString(data)
 	var account Account
-	accountByte, _ := stub.GetState(AccountPreifx + remoteMspId)
-	if accountByte != nil {
-		json.Unmarshal(accountByte, &account)
+	accountByte, _ := stub.GetState(AccountPreifx + tx.To)
+	if accountByte == nil {
+		return errors.New("account not exist:" + tx.To)
 	}
 
-	account.Assets = append(account.Assets, afterData)
-	accountByte, _ = json.Marshal(account)
-	stub.PutState(AccountPreifx+remoteMspId, accountByte)
+	json.Unmarshal(accountByte, &account)
+	account.Assets = append(account.Assets, encryptAssetAddr)
 
-	if amount < 0 {
-		attchHash = sha256.New()
-		attchHash.Write([]byte(newAssetAddrs[1] + remoteMspId))
-		sign = attchHash.Sum(nil)
-		hashSign := base64.StdEncoding.EncodeToString(sign)
+	// 添加日志
+	accountLog := AccountLog{
+		Timestamp:  tx.Timestamp,
+		RemoteAddr: mspId,
+		Amount:     transferAmount,
+		OpeType:    "transfer in",
+		LogInfo:    tx.Info}
+	err = t.storeAccountLog(stub, &account, accountLog)
+	if err != nil {
+		return err
+	}
+
+	accountByte, _ = json.Marshal(account)
+	stub.PutState(AccountPreifx+tx.To, accountByte)
+
+	// 加密余额asset地址并且将asset加入account
+	if tx.Amount < 0 {
+		hashSign, err := getShaBase64Str(tx.NewAddr[1] + mspId)
+		if err != nil {
+			return err
+		}
 
 		transferAsset = Asset{
-			Addr:       newAssetAddrs[1],
-			Value:      0 - amount,
+			Addr:       tx.NewAddr[1],
+			Value:      0 - tx.Amount,
 			AttachHash: hashSign,
 			HasSpent:   "N"}
 		transferAssetByte, err := json.Marshal(transferAsset)
 		if err != nil {
 			return errors.New("marshal new asset failed")
 		}
-		stub.PutState(newAssetAddrs[1], transferAssetByte)
+		stub.PutState(tx.NewAddr[1], transferAssetByte)
+
+		// 加密asset地址并且将asset加入account
+		encryptAssetAddr, err := t.encryptStrData(stub, mspId, tx.NewAddr[1])
+		if err != nil {
+			return err
+		}
+
+		var account Account
+		accountByte, _ := stub.GetState(AccountPreifx + mspId)
+		if accountByte == nil {
+			return errors.New("account not exist:" + mspId)
+		}
+
+		json.Unmarshal(accountByte, &account)
+		account.Assets = append(account.Assets, encryptAssetAddr)
+
+		// 添加日志
+		accountLog := AccountLog{
+			Timestamp:  tx.Timestamp,
+			RemoteAddr: tx.To,
+			Amount:     transferAmount,
+			OpeType:    "transfer out",
+			LogInfo:    tx.Info}
+		err = t.storeAccountLog(stub, &account, accountLog)
+		if err != nil {
+			return err
+		}
+
+		accountByte, _ = json.Marshal(account)
+		stub.PutState(AccountPreifx+mspId, accountByte)
 	}
 	return nil
 }
@@ -430,34 +490,21 @@ func (t *AbsChaincode) transferAssets(stub shim.ChaincodeStubInterface, assets [
 //转账交易
 func (t *AbsChaincode) transfer(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var tx Transaction
-	err := json.Unmarshal([]byte(args[0]), &tx)
+	// err := json.Unmarshal([]byte(args[0]), &tx)
 
 	// 签名验证
-	decryptKey, err := t.getUnsignKey(stub)
+	data, err := t.unsignEncryptData(stub, args[0])
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-
-	block, _ := pem.Decode(decryptKey)
-	if block == nil {
-		return shim.Error("invalid key")
-	}
-	priv, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	err = json.Unmarshal(data, &tx)
 	if err != nil {
-		return shim.Error("parse peivate key failed")
-	}
-	encryptData, err := base64.StdEncoding.DecodeString(args[0])
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	data, _ := rsa.DecryptPKCS1v15(rand.Reader, priv, encryptData)
-
-	if data != nil {
-		err = json.Unmarshal([]byte(data), &tx)
+		return shim.Error("unmarshal decryptedStr failed" + err.Error())
 	}
 
 	assetsAddrs := tx.AssetAddrs[:]
 
+	// 从解密后地址中查询资产
 	assets, err := getAssetsByAddrs(stub, assetsAddrs)
 	if err != nil {
 		return shim.Error("find assets failed")
@@ -468,7 +515,8 @@ func (t *AbsChaincode) transfer(stub shim.ChaincodeStubInterface, args []string)
 		return shim.Error("poor balance")
 	}
 
-	err = t.transferAssets(stub, assets, tx.Amount, tx.NewAddr, tx.To)
+	//转让资产
+	err = t.transferAssets(stub, assets, tx)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -517,6 +565,19 @@ func (t *AbsChaincode) coinBase(stub shim.ChaincodeStubInterface, args []string)
 		json.Unmarshal(accountByte, &account)
 	}
 	account.Assets = append(account.Assets, afterData)
+
+	// 添加日志
+	accountLog := AccountLog{
+		Timestamp:  "..",
+		RemoteAddr: "",
+		Amount:     amount,
+		OpeType:    "coinBase",
+		LogInfo:    ""}
+	err = t.storeAccountLog(stub, &account, accountLog)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
 	accountByte, _ = json.Marshal(account)
 	stub.PutState(AccountPreifx+mspId, accountByte)
 	return shim.Success(nil)
@@ -569,4 +630,73 @@ func (t *AbsChaincode) getAssetsByAddrs(stub shim.ChaincodeStubInterface, args [
 	}
 
 	return shim.Success(val)
+}
+
+//查询交易历史信息
+func (t *AbsChaincode) getAccountLog(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	var logAddrs []string
+	var logs []AccountLog
+
+	if len(args) != 1 || isEmptyStr(args[0]) {
+		return shim.Error("invalid args")
+	}
+
+	err := json.Unmarshal([]byte(args[0]), &logAddrs)
+
+	if len(logAddrs) == 0 {
+		return shim.Error("invalid args")
+	}
+
+	for i := 0; i < len(logAddrs); i++ {
+		var log AccountLog
+		logBytes, err := stub.GetState(logAddrs[i])
+		if err != nil {
+			return shim.Error("get log failed,id" + logAddrs[i] + ",detail:" + err.Error())
+		}
+		err = json.Unmarshal(logBytes, &log)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		logs = append(logs, log)
+	}
+	logsBytes, err := json.Marshal(logs)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(logsBytes)
+}
+
+func (t *AbsChaincode) clearAllData(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	var addrs []string
+	if len(args) == 1 {
+		err := json.Unmarshal([]byte(args[0]), &addrs)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+	}
+
+	if len(addrs) != 0 {
+		for i := 0; i < len(addrs); i++ {
+			stub.DelState(addrs[i])
+		}
+	}
+
+	queryStr := QUERY_STR_HDR
+	queryStr += "\"" + "transaction" + "\"" + QUERY_STR_ALL_TAL
+	res, err := stub.GetQueryResult(queryStr)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	defer res.Close()
+
+	for res.HasNext() {
+		row, err := res.Next()
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		err = stub.DelState(row.Key)
+	}
+
+	return shim.Success(nil)
 }
