@@ -17,7 +17,7 @@ type Transaction struct {
 	AssetTypeID   string   `json:"assetTypeId"`
 	Amount        float64  `json:"amount"`
 	TxType        string   `json:"txType"`
-	NewAssetAddrs []string `json:"newAssetAddrs"`
+	NewAssetAddrs []string `json:"newAssetAddrs"` //UUID
 	AssetAddrs    []string `json:"assetAddrs"`
 }
 

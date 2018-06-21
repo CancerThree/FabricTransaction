@@ -50,6 +50,25 @@ func decryptBase64Str(encryptStr string) ([]byte, error) {
 	return decryptedData, nil
 }
 
+func encryptData(encryptKey []byte, encryptData []byte) ([]byte, error) {
+	block, _ := pem.Decode(encryptKey)
+	if block == nil {
+		return nil, errors.New("decode encrypt key failed, encryptKey bytes:" + string(encryptKey))
+	}
+	pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, errors.New("parse key failed:" + err.Error())
+	}
+	pub := pubInterface.(*rsa.PublicKey)
+
+	//加密
+	encryptedData, err := rsa.EncryptPKCS1v15(rand.Reader, pub, data)
+	if err != nil {
+		return nil, errors.New("encrypt failed:" + err.Error())
+	}
+	return encryptedData, nil
+}
+
 func decryptData(decryptKey []byte, encryptedData []byte) ([]byte, error) {
 	//获取解密密钥
 	block, _ := pem.Decode(decryptKey)

@@ -73,6 +73,7 @@ func getAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]Asset
 	// assets := make([]Asset, len(addrs))
 	var assets []Asset
 
+	// 从小到大修改asset
 	for i := 0; i < len(addrs); i++ {
 		var asset Asset
 		val, err := stub.GetState(addrs[i])
@@ -89,4 +90,39 @@ func getAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]Asset
 	}
 
 	return assets, nil
+}
+
+func sotreAsset(stub shim.ChaincodeStubInterface, accId string, assetAddr string, amount float64, typeId string) error {
+	val, err := stub.GetState(accId)
+	if err != nil {
+		return errors.New("accountId Invalid:" + accId)
+	}
+
+	val, err = stub.GetState(assetAddr)
+	if err != nil {
+		return errors.New("assetAddr Invalid:" + assetAddr)
+	}
+
+	if amount <= 0 {
+		return errors.New("asset amount invalid")
+	}
+
+	hashSign, err := getShaBase64Str(accId + assetAddr)
+	if err != nil {
+		return err
+	}
+
+	asset := Asset{
+		Addr:       assetAddr,
+		Value:      amount,
+		TypeID:     typeId,
+		AttachHash: hashSign,
+		HasSpent:   ASSET_HAS_NOT_SPENT}
+	assetBytes, err := json.Marshal(asset)
+	if err != nil {
+		return errors.New("marshal new asset failed:" + err.Error())
+	}
+
+	stub.PutState(assetAddr, assetBytes)
+	return nil
 }

@@ -49,6 +49,14 @@ func InitAccount(stub shim.ChaincodeStubInterface, args []string) error {
 	return nil
 }
 
+func addAsset(stub shim.ChaincodeStubInterface, acc Account, assetAddr string, amount float64, typeId string) error {
+	err := sotreAsset(stub, acc.Addr, assetAddr, amount, typeId)
+	if err != nil {
+		return err
+	}
+
+}
+
 func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transaction, fromAcc Account, toAcc Account) error {
 	transferAmount := tx.Amount
 
@@ -58,9 +66,12 @@ func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transac
 			break
 		}
 
-		if assets[i].CanBeTransfer()
-		if !canTrans {
-			continue
+		if canTrans, err := assets[i].CanBeTransfer(tx.FromAccount); !canTrans {
+			if err == nil {
+				continue
+			} else {
+				return err
+			}
 		}
 
 		assets[i].HasSpent = "Y"
