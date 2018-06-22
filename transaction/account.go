@@ -13,6 +13,7 @@ type Account struct {
 	EncryptKey string `json:"encryptKey"` //加密用-publicKey
 	AttachHash string `json:"attachHash"`
 	OrgID      string `json:"orgId"`
+	ObjectType string `json:"objectType"`
 }
 
 func InitAccount(stub shim.ChaincodeStubInterface, args []string) error {
@@ -49,8 +50,8 @@ func InitAccount(stub shim.ChaincodeStubInterface, args []string) error {
 	return nil
 }
 
-func addAsset(stub shim.ChaincodeStubInterface, acc Account, assetAddr string, amount float64, typeId string) error {
-	err := sotreAsset(stub, acc.Addr, assetAddr, amount, typeId)
+func addAssetUnderAccount(stub shim.ChaincodeStubInterface, acc Account, assetAddr string, amount float64, typeId string) error {
+	err := addAsset(stub, acc.Addr, assetAddr, amount, typeId)
 	if err != nil {
 		return err
 	}
@@ -61,9 +62,29 @@ func addAsset(stub shim.ChaincodeStubInterface, acc Account, assetAddr string, a
 		AccountID:      acc.Addr,
 		EncryptAssetID: encryptedStr,
 		HasSpent:       ASSET_HAS_NOT_SPENT,
-		TypeID:         typeId}
+		TypeID:         typeId,
+		ObjectType:		OBJECT_TYPE_ASSET}
 
-	key, err := stub.CreateCompositeKey()
+	key, err := stub.CreateCompositeKey(OBJECT_TYPE_ASSET, []string{acc.Addr, encryptedStr})
+	if err != nil {
+		return errors.New("create accoutAsset Key failed:" + err.Error())
+	}
+	val, err := stub.GetState(key)
+	if err != nil {
+		return errors.New("get accoutAsset failed:" + err.Error())
+	}
+	if val != nil {
+		return errors.New("asset already exist")
+	}
+
+	bytes, err := json.Marshal(accountAsset)
+	if err != nil {
+		return errors.New("marshal accountAsset failed:" + err.Error())
+	}
+	if err = stub.PutState(key, bytes); err != nil {
+		return errors.New("sotre accountAsset failed:" + err.Error())
+	}
+	return nil
 }
 
 func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transaction, fromAcc Account, toAcc Account) error {
@@ -83,7 +104,7 @@ func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transac
 			}
 		}
 
-		assets[i].HasSpent = "Y"
+		[i].HasSpent = "Y"
 		transferAmount -= assets[i].Value
 
 		assetBytes, err := json.Marshal(assets[i])
@@ -93,6 +114,19 @@ func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transac
 
 		stub.PutState(assets[i].Addr, assetBytes)
 	}
+
+	//新建Asset作为转让以及“找零”的资产
+	if err := addAssetUnderAccount(stub, toAcc, tx.AssetAddrs[0], tx.Amount, tx.AssetTypeID); err != nil {
+		return err
+	}
+	if transferAmount < 0 {
+		if err := addAssetUnderAccount(stub, fromAcc, tx.AssetAddrs[1], 0-transferAmount, tx.AssetTypeID); err != nil {
+			return err
+		}
+	}
+
+	//填log
+
 }
 
 // func (acc *Account) getUnsignKey() string {

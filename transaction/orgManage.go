@@ -19,6 +19,8 @@ type Transaction struct {
 	TxType        string   `json:"txType"`
 	NewAssetAddrs []string `json:"newAssetAddrs"` //UUID
 	AssetAddrs    []string `json:"assetAddrs"`
+	LogInfo       string   `json:"logInfo,omitempty"`
+	ModUser       string   `json:"modUser"`
 }
 
 func Transfer(stub shim.ChaincodeStubInterface, args []string) error {

@@ -12,6 +12,7 @@ type AccountsAsset struct {
 	EncryptAssetID string `json:"encryptAssetId"`
 	HasSpent       string `json:"hasSpent"`
 	TypeID         string `json:"typeId"`
+	ObjectType     string `json:"objectType"`
 }
 
 type Asset struct {
@@ -20,6 +21,7 @@ type Asset struct {
 	TypeID     string  `json:"typeId,omitempty"`
 	AttachHash string  `json:"attachHash,omitempty"`
 	HasSpent   string  `json:"hasSpent,omitempty"`
+	ObjectType string  `json:"objectType"`
 }
 
 // 判断asset是否可进行转让
@@ -92,7 +94,7 @@ func getAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]Asset
 	return assets, nil
 }
 
-func sotreAsset(stub shim.ChaincodeStubInterface, accId string, assetAddr string, amount float64, typeId string) error {
+func addAsset(stub shim.ChaincodeStubInterface, accId string, assetAddr string, amount float64, typeId string) error {
 	val, err := stub.GetState(accId)
 	if err != nil {
 		return errors.New("accountId Invalid:" + accId)
@@ -101,6 +103,9 @@ func sotreAsset(stub shim.ChaincodeStubInterface, accId string, assetAddr string
 	val, err = stub.GetState(assetAddr)
 	if err != nil {
 		return errors.New("assetAddr Invalid:" + assetAddr)
+	}
+	if val != nil {
+		return errors.New("asset already exists.")
 	}
 
 	if amount <= 0 {
