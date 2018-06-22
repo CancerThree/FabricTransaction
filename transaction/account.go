@@ -55,6 +55,15 @@ func addAsset(stub shim.ChaincodeStubInterface, acc Account, assetAddr string, a
 		return err
 	}
 
+	encryptedData, err := encryptData([]byte(acc.EncryptKey), []byte(assetAddr))
+	encryptedStr, err := getShaBase64Str(string(encryptedData))
+	accountAsset := AccountsAsset{
+		AccountID:      acc.Addr,
+		EncryptAssetID: encryptedStr,
+		HasSpent:       ASSET_HAS_NOT_SPENT,
+		TypeID:         typeId}
+
+	key, err := stub.CreateCompositeKey()
 }
 
 func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transaction, fromAcc Account, toAcc Account) error {
@@ -75,7 +84,7 @@ func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transac
 		}
 
 		assets[i].HasSpent = "Y"
-		tx.Amount -= assets[i].Value
+		transferAmount -= assets[i].Value
 
 		assetBytes, err := json.Marshal(assets[i])
 		if err != nil {
