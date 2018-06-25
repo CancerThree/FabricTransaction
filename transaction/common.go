@@ -16,6 +16,15 @@ import (
 	"github.com/hyperledger/fabric/protos/msp"
 )
 
+func encryptData2Base64Str(encryptKey []byte, data []byte) (string, error) {
+	bytesData, err := encryptData(encryptKey, data)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(bytesData), nil
+}
+
 //计算字符串的SHA256哈希值，并且将哈希值转为Base64编码的字符串返回
 func getShaBase64Str(str string) (string, error) {
 	hash := sha256.New()
@@ -50,7 +59,7 @@ func decryptBase64Str(encryptStr string) ([]byte, error) {
 	return decryptedData, nil
 }
 
-func encryptData(encryptKey []byte, encryptData []byte) ([]byte, error) {
+func encryptData(encryptKey []byte, data []byte) ([]byte, error) {
 	block, _ := pem.Decode(encryptKey)
 	if block == nil {
 		return nil, errors.New("decode encrypt key failed, encryptKey bytes:" + string(encryptKey))

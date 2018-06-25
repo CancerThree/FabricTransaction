@@ -126,7 +126,22 @@ func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transac
 	}
 
 	//填log
+	err = addOrgPrivateLog(stub, tx, fromAcc, TX_TYPE_TRANSFER_OUT)
+	if err != nil {
+		return err
+	}
 
+	err = addOrgPrivateLog(stub, tx, toAcc, TX_TYPE_TRANSFER_IN)
+	if err != nil {
+		return err
+	}
+
+	err = addChainLog(stub, tx, TX_TYPE_TRANSFER)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // func (acc *Account) getUnsignKey() string {

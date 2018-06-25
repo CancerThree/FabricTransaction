@@ -11,14 +11,16 @@ const (
 )
 
 const (
-	OBJECT_TYPE_ASSET    = "asset"
-	OBJECT_TYPE_ACCOUNT  = "account"
-	OBJECT_TYPE_ORG      = "org"
-	OBJECT_TYPE_LOG_ADDR = "logAddr"
+	OBJECT_TYPE_ASSET     = "asset"
+	OBJECT_TYPE_ACCOUNT   = "account"
+	OBJECT_TYPE_ORG       = "org"
+	OBJECT_TYPE_LOG_ADDR  = "logAddr"
+	OBJECT_TYPE_CHAIN_LOG = "chainLog"
 )
 
 const (
 	TX_TYPE_TRANSFER_OUT = "OUTCOME"
 	TX_TYPE_TRANSFER_IN  = "INCOME"
 	TX_TYPE_ISSUE        = "ISSUE"
+	TX_TYPE_TRANSFER     = "TRANSFER"
 )

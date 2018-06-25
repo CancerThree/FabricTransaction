@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -25,11 +27,13 @@ type OrgPrivateLog struct {
 }
 
 type ChainLog struct {
-	FromAcc   string  `json:"fromAcc"`
-	ToAcc     string  `json:"toAcc"`
-	Value     float64 `json:"value"`
-	AssetType string  `json:"assetType"`
-	Timestamp	string	`json:"timestamp"`
+	FromAcc    string  `json:"fromAcc"`
+	ToAcc      string  `json:"toAcc"`
+	Value      float64 `json:"value"`
+	AssetType  string  `json:"assetType"`
+	Timestamp  string  `json:"timestamp"`
+	ObjectType string  `json:"objectType"`
+	TxID       string  `json:"txId"`
 }
 
 func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc Account, opeType string) error {
@@ -57,9 +61,67 @@ func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc Acco
 		LogInfo:   tx.LogInfo,
 		TxId:      txId,
 		ModUser:   modUser}
-	
-	logAddr := OrgLogAddr {
-		OrgID:
+	logKey := ACCOUNT_LOG_PREFIX + txId
+
+	logBytes, err := json.Marshal(log)
+	if err != nil {
+		return errors.New("marshal log failed:" + err.Error())
 	}
 
+	logStr, err := encryptData2Base64Str([]byte(acc.EncryptKey), logBytes)
+	if err != nil {
+		return err
+	}
+
+	if err = stub.PutState(logKey, logStr); err != nil {
+		return errors.New("putState log failed:" + err.Error())
+	}
+
+	encryptLogKeyByte, err := encryptData([]byte(acc.EncryptKey), []byte(logKey))
+	if err != nil {
+		return err
+	}
+	encryptLogKeyStr := base64.StdEncoding.EncodeToString(encryptLogKeyByte)
+
+	logAddr := OrgLogAddr{
+		OrgID:        acc.OrgID,
+		EncryptLogID: encryptLogKeyStr,
+		ObjectType:   OBJECT_TYPE_LOG_ADDR}
+	logAddrKey, err := stub.CreateCompositeKey(OBJECT_TYPE_LOG_ADDR, []string{acc.OrgID, encryptLogKeyStr})
+	if err != nil {
+		return errors.New(err.Error())
+	}
+
+	logAddrBytes, err := json.Marshal(logAddr)
+	if err != nil {
+		return err
+	}
+
+	err = stub.PutState(logAddrKey, logAddrBytes)
+	if err != nil {
+		return errors.New("store logAddr failed:" + err.Error())
+	}
+
+	return nil
+}
+
+func addChainLog(stub shim.ChaincodeStubInterface, tx Transaction, opeType string) error {
+	txId := stub.GetTxID()
+	key := CHAIN_LOG_PREFIX + txId
+
+	chainLog := ChainLog{
+		FromAcc:    tx.FromAccount,
+		ToAcc:      tx.ToAccount,
+		Value:      tx.Amount,
+		AssetType:  tx.AssetTypeID,
+		Timestamp:  tx.TimeStamp,
+		ObjectType: OBJECT_TYPE_CHAIN_LOG,
+		TxID:       txId}
+	chainLogBytes, err := json.Marshal(chainLog)
+	if err != nil {
+		return errors.New("marshal chainlog failed:" + err.Error())
+	}
+
+	err = stub.PutState(key, chainLogBytes)
+	return err
 }
