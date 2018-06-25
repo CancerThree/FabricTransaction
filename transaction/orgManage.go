@@ -56,11 +56,43 @@ func Transfer(stub shim.ChaincodeStubInterface, args []string) error {
 
 	//验证所用地址是否合法
 	val, err := stub.GetState(tx.NewAddr[0])
+	if err != nil {
+		return err
+	}
 	if val != nil {
 		return errors.New("addr has been used:" + tx.NewAddr[0])
 	}
 	val, err = stub.GetState(tx.NewAddr[1])
+	if err != nil {
+		return err
+	}
 	if val != nil {
 		return errors.New("addr has been used:" + tx.NewAddr[1])
 	}
+
+	//验证空字段
+	if isEmptyStr(tx.AssetTypeID) || isEmptyStr(tx.ModUser) || isEmptyStr(tx.OrgID) ||
+		isEmptyStr(tx.TimeStamp) {
+		return errors.New("assetType, timestamp, moduser, orgId cannot be null")
+	}
+
+	//验证账户
+	fromAccount, err := getAccountById(tx.FromAccount)
+	if err != nil {
+		return errors.New("fromaccount verified failed:" + err.Error())
+	}
+	toAccount, err := getAccountById(tx.ToAccount)
+	if err != nil {
+		return errors.New("toAccount verified failed:" + err.Error())
+	}
+
+	if err = transferAssets(stub, assets, tx, fromAccount, toAccount); err != nil {
+		return errors.New("transfer failed.\r\n" + err.Error())
+	}
+
+	return nil
+}
+
+func IssueAsset(stub shim.ChaincodeStubInterface, args []string) error {
+
 }

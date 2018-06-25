@@ -50,6 +50,25 @@ func InitAccount(stub shim.ChaincodeStubInterface, args []string) error {
 	return nil
 }
 
+func getAccountById(key string) (Account, error) {
+	var acc Account
+	if isEmptyStr(key) {
+		return nil, errors.New("addr cannot be empty")
+	}
+	val, err := stub.GetState(key)
+	if err != nil {
+		return nil, errors.New("query account failed:" + key + ",detail:" + err.Error())
+	}
+	if val == nil {
+		return nil, errors.New("fromAcc cannot find:" + key)
+	}
+	err = json.Unmarshal(val, &acc)
+	if err != nil {
+		return nil, errors.New("unmarshal acc failed:" + err.Error())
+	}
+	return acc, nil
+}
+
 func addAssetUnderAccount(stub shim.ChaincodeStubInterface, acc Account, assetAddr string, amount float64, typeId string) error {
 	err := addAsset(stub, acc.Addr, assetAddr, amount, typeId)
 	if err != nil {
@@ -63,7 +82,7 @@ func addAssetUnderAccount(stub shim.ChaincodeStubInterface, acc Account, assetAd
 		EncryptAssetID: encryptedStr,
 		HasSpent:       ASSET_HAS_NOT_SPENT,
 		TypeID:         typeId,
-		ObjectType:		OBJECT_TYPE_ASSET}
+		ObjectType:     OBJECT_TYPE_ASSET}
 
 	key, err := stub.CreateCompositeKey(OBJECT_TYPE_ASSET, []string{acc.Addr, encryptedStr})
 	if err != nil {
@@ -104,7 +123,7 @@ func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transac
 			}
 		}
 
-		[i].HasSpent = "Y"
+		assets[i].HasSpent = "Y"
 		transferAmount -= assets[i].Value
 
 		assetBytes, err := json.Marshal(assets[i])
@@ -126,7 +145,7 @@ func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transac
 	}
 
 	//填log
-	err = addOrgPrivateLog(stub, tx, fromAcc, TX_TYPE_TRANSFER_OUT)
+	err := addOrgPrivateLog(stub, tx, fromAcc, TX_TYPE_TRANSFER_OUT)
 	if err != nil {
 		return err
 	}
