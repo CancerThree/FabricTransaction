@@ -8,7 +8,7 @@ import (
 )
 
 type Transaction struct {
-	// ToOrgID	string	`json:"toOrgId"`	//放链下存放机构日志
+	ToOrgID     string `json:"toOrgId"` //放链下存放机构日志
 	ToAccount   string `json:"toAccount"`
 	FromAccount string `json:"fromAccount"`
 	TimeStamp   string `json:"timeStamp"`
@@ -26,7 +26,7 @@ type Transaction struct {
 func Transfer(stub shim.ChaincodeStubInterface, args []string) error {
 	var tx Transaction
 
-	//TODO 签名验证
+	//TODO 签名验证 && 验证OrgId
 	data, err := unsignEncryptData(stub, args[0])
 	if err != nil {
 		return errors.New(err.Error())
@@ -81,6 +81,11 @@ func Transfer(stub shim.ChaincodeStubInterface, args []string) error {
 	if err != nil {
 		return errors.New("fromaccount verified failed:" + err.Error())
 	}
+	err = verifyAccountOfOrg(tx.OrgID, fromAccount)
+	if err != nil {
+		return err
+	}
+
 	toAccount, err := getAccountById(tx.ToAccount)
 	if err != nil {
 		return errors.New("toAccount verified failed:" + err.Error())
@@ -94,5 +99,54 @@ func Transfer(stub shim.ChaincodeStubInterface, args []string) error {
 }
 
 func IssueAsset(stub shim.ChaincodeStubInterface, args []string) error {
+	var tx Transaction
+	//TODO 签名验证
 
+	if len(args) != 1 {
+		return errors.New("issue only need 1 argument")
+	}
+
+	err := json.Unmarshal([]byte(args[0]), &tx)
+	if err != nil {
+		return errors.New("unmarshal tx failed:" + err.Error())
+	}
+
+}
+
+func IssueAsset(stub shim.ChaincodeStubInterface, tx Transaction) error {
+	//验证字段是否为空
+	if isEmptyStr(tx.OrgID) || isEmptyStr(tx.AssetTypeID) || isEmptyStr(tx.ModUser) ||
+		isEmptyStr(tx.TimeStamp) {
+		return errors.New("orgID, assetTypeId, modUser, timestamp, accountAddr cannot be empty")
+	}
+
+	//验证数额
+	if tx.Amount < 0.0 {
+		return errors.New("issue amount cannot less than 0")
+	}
+
+	// 验证所用地址
+	if len(tx.NewAssetAddrs) < 1 || isEmptyStr(tx.NewAssetAddrs[0]) {
+		return errors.New("new asset addr is empty")
+	}
+	val, err := stub.GetState(tx.NewAssetAddrs[0])
+	if err != nil {
+		return errors.New("verify asset addr failed:" + err.Error())
+	}
+	if val != nil {
+		return errors.New("assets already exist:" + tx.NewAssetAddrs[0])
+	}
+
+	//验证账户
+	account, err := getAccountById(tx.ToAccount)
+	if err != nil {
+		return errors.New("verify account id failed:" + err.Error())
+	}
+
+	err = addAssetUnderAccount(stub, account, tx.AssetAddrs[0], tx.Amount, tx.AssetTypeID)
+	if err != nil {
+		return errors.New("add asset failed:" + err.Error())
+	}
+
+	return nil
 }

@@ -50,6 +50,18 @@ func InitAccount(stub shim.ChaincodeStubInterface, args []string) error {
 	return nil
 }
 
+func verifyAccountOfOrg(orgId string, acc Account) error {
+	hash, err := getShaBase64Str(orgId + acc.Addr)
+	if err != nil {
+		return errors.New("calc hash failed:" + err.Error())
+	}
+	if acc.attachHash != hash {
+		return errors.New("hash verified failed:" + orgId + "," + acc.Addr)
+	}
+
+	return nil
+}
+
 func getAccountById(key string) (Account, error) {
 	var acc Account
 	if isEmptyStr(key) {
