@@ -7,8 +7,8 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
-type AccountsAsset struct {
-	AccountID      string `json:"accountId"`
+type PoolAsset struct {
+	PoolID         string `json:"poolId"`
 	EncryptAssetID string `json:"encryptAssetId"`
 	HasSpent       string `json:"hasSpent"`
 	TypeID         string `json:"typeId"`

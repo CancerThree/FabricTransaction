@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
-	pb "github.com/hyperledger/fabric/protos/peer"
 )
 
 type OrganizationRequest struct {
@@ -27,7 +26,7 @@ type Organization struct {
 }
 
 //添加机构
-func (t *AbsChaincode) addOrganization(stub shim.ChaincodeStubInterface, args []string) error {
+func AddOrganization(stub shim.ChaincodeStubInterface, args []string) error {
 	var request OrganizationRequest
 	//验证参数
 	if len(args) != 1 {
@@ -35,12 +34,12 @@ func (t *AbsChaincode) addOrganization(stub shim.ChaincodeStubInterface, args []
 	}
 	err := json.Unmarshal([]byte(args[0]), &request)
 	if err != nil {
-		return shim.Error(err.Error())
+		return errors.New("unmarshal args failed:" + err.Error())
 	}
 	// 验证字段
 	err = request.verifyField()
 	if err != nil {
-		return shim.Error(err.Error())
+		return err
 	}
 	//验证签名
 	publicKey := request.SignPublicKey
@@ -51,7 +50,7 @@ func (t *AbsChaincode) addOrganization(stub shim.ChaincodeStubInterface, args []
 	//TODO 权限控制
 
 	//判重
-	key, err := stub.CreateCompositeKey(ObjectTypeOrganization, []string{request.OrgId})
+	key, err := stub.CreateCompositeKey(OBJECT_TYPE_ORG, []string{request.OrgId})
 	if err != nil {
 		return errors.New("create key failed:" + err.Error())
 	}
@@ -69,53 +68,57 @@ func (t *AbsChaincode) addOrganization(stub shim.ChaincodeStubInterface, args []
 		OrgId:         request.OrgId,
 		PublicKey:     request.PublicKey,
 		SignPublicKey: request.SignPublicKey,
-		ObjectType:    ObjectTypeOrganization,
+		ObjectType:    OBJECT_TYPE_ORG,
 		MspId:         mspId,
 	}
 
 	val, err = json.Marshal(record)
 	if err != nil {
-		return shim.Error(err.Error())
+		return errors.New("marshal org failed:" + err.Error())
 	}
-	stub.PutState(key, val)
+
+	err = stub.PutState(key, val)
+	if err != nil {
+		return errors.New("putstate failed:" + err.Error())
+	}
 
 	return shim.Success(nil)
 }
 
-func (t *AbsChaincode) queryOrganization(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func QueryOrganizationByKey(stub shim.ChaincodeStubInterface, args []string) (Organization, error) {
 	var record Organization
 
 	if len(args) != 1 {
-		return shim.Error("queryOrganization所需参数个数：1")
+		return nil, errors.New("queryOrganization所需参数个数：1")
 	}
 	orgId := args[0]
 
 	// generate compositeKey
 	key, err := stub.CreateCompositeKey(ObjectTypeOrganization, []string{orgId})
 	if err != nil {
-		return shim.Error(err.Error())
+		return nil, errors.New(err.Error())
 	}
 
 	val, err := stub.GetState(key)
 	if err != nil {
-		return shim.Error(err.Error())
+		return nil, errors.New("getState failed:" + err.Error())
 	}
 	if val == nil {
-		return shim.Error("该记录不存在")
+		return nil, errors.New("该记录不存在")
 	}
 	err = json.Unmarshal(val, &record)
 	if err != nil {
-		return shim.Error(err.Error())
+		return nil, errors.New("unmarshal record failed:" + err.Error())
 	}
 
-	//TODO 权限
+	// //TODO 权限
 
-	val, err = json.Marshal(record)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
+	// val, err = json.Marshal(record)
+	// if err != nil {
+	// 	return shim.Error(err.Error())
+	// }
 
-	return shim.Success(val)
+	return record, nil
 }
 
 func (request OrganizationRequest) verifyField() error {
@@ -137,24 +140,24 @@ func (request OrganizationRequest) verifyField() error {
 	return nil
 }
 
-//根据orgId查询机构信息，供其他模块查询公钥使用
-func GetOrganization(stub shim.ChaincodeStubInterface, orgId string) (*Organization, error) {
-	var record Organization
-	key, err := stub.CreateCompositeKey(ObjectTypeOrganization, []string{orgId})
-	if err != nil {
-		return nil, err
-	}
+// //根据orgId查询机构信息，供其他模块查询公钥使用
+// func GetOrganization(stub shim.ChaincodeStubInterface, orgId string) (*Organization, error) {
+// 	var record Organization
+// 	key, err := stub.CreateCompositeKey(ObjectTypeOrganization, []string{orgId})
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	val, err := stub.GetState(key)
-	if err != nil {
-		return nil, err
-	}
-	if val == nil {
-		return nil, errors.New("记录不存在")
-	}
-	err = json.Unmarshal(val, &record)
-	if err != nil {
-		return nil, err
-	}
-	return &record, nil
-}
+// 	val, err := stub.GetState(key)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if val == nil {
+// 		return nil, errors.New("记录不存在")
+// 	}
+// 	err = json.Unmarshal(val, &record)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return &record, nil
+// }

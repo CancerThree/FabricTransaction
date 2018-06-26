@@ -12,10 +12,11 @@ const (
 
 const (
 	OBJECT_TYPE_ASSET     = "asset"
-	OBJECT_TYPE_ACCOUNT   = "account"
+	OBJECT_TYPE_ASEETPOOL = "assetPool"
 	OBJECT_TYPE_ORG       = "org"
 	OBJECT_TYPE_LOG_ADDR  = "logAddr"
 	OBJECT_TYPE_CHAIN_LOG = "chainLog"
+	OBJECT_TYPE_ORG       = "organization"
 )
 
 const (

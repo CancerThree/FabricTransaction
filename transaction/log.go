@@ -66,7 +66,7 @@ func GetPrivateLogByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]O
 	return logs, nil
 }
 
-func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc Account, opeType string) error {
+func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc AssetPool, opeType string) error {
 	txId := stub.GetTxID()
 	key := ACCOUNT_LOG_PREFIX + txId
 	val, err := stub.GetState(key)
