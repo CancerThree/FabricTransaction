@@ -12,6 +12,7 @@ type OrgLogAddr struct {
 	OrgID        string `json:"orgId"`
 	EncryptLogID string `json:"encryptLogId"`
 	ObjectType   string `json:"objectType"`
+	TimeStamp    string `json:"timestamp"`
 }
 
 type OrgPrivateLog struct {
@@ -34,6 +35,35 @@ type ChainLog struct {
 	Timestamp  string  `json:"timestamp"`
 	ObjectType string  `json:"objectType"`
 	TxID       string  `json:"txId"`
+}
+
+func GetPrivateLogByAddrJsonStr(stub shim.ChaincodeStubInterface, arrayJsonStr string) ([]OrgPrivateLog, error) {
+	var addrs []string
+
+	err := json.Unmarshal([]byte(arrayJsonStr), &addrs)
+	if err != nil {
+		return errors.New("unmarshal array str failed:" + err.Error())
+	}
+
+	return GetPrivateLogByAddrs(stub, addrs)
+}
+
+func GetPrivateLogByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]OrgPrivateLog, error) {
+	logs := []OrgPrivateLog{}
+
+	for index, addr := range addrs {
+		var log OrgPrivateLog
+		val, err := stub.GetState(addr)
+		if err != nil {
+			return nil, errors.New("query log" + addr + " failed:" + err.Error())
+		}
+		err = json.Unmarshal(val, &log)
+		if err != nil {
+			return nil, errors.New("unmarshal log" + addr + " failed:" + err.Error())
+		}
+		logs = append(logs, log)
+	}
+	return logs, nil
 }
 
 func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc Account, opeType string) error {
@@ -86,7 +116,8 @@ func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc Acco
 	logAddr := OrgLogAddr{
 		OrgID:        acc.OrgID,
 		EncryptLogID: encryptLogKeyStr,
-		ObjectType:   OBJECT_TYPE_LOG_ADDR}
+		ObjectType:   OBJECT_TYPE_LOG_ADDR,
+		TimeStamp:    tx.TimeStamp}
 	logAddrKey, err := stub.CreateCompositeKey(OBJECT_TYPE_LOG_ADDR, []string{acc.OrgID, encryptLogKeyStr})
 	if err != nil {
 		return errors.New(err.Error())
