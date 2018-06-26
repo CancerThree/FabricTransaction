@@ -82,8 +82,8 @@ func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc Asse
 	}
 
 	log := OrgPrivateLog{
-		FromOrg:   tx.FromAccount,
-		ToOrg:     tx.ToAccount,
+		FromOrg:   tx.FromPool,
+		ToOrg:     tx.ToPool,
 		Amount:    tx.Amount,
 		AssetType: tx.AssetTypeID,
 		Timestamp: tx.TimeStamp,
@@ -141,8 +141,8 @@ func addChainLog(stub shim.ChaincodeStubInterface, tx Transaction, opeType strin
 	key := CHAIN_LOG_PREFIX + txId
 
 	chainLog := ChainLog{
-		FromAcc:    tx.FromAccount,
-		ToAcc:      tx.ToAccount,
+		FromAcc:    tx.FromPool,
+		ToAcc:      tx.ToPool,
 		Value:      tx.Amount,
 		AssetType:  tx.AssetTypeID,
 		Timestamp:  tx.TimeStamp,

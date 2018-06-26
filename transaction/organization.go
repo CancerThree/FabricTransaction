@@ -85,13 +85,13 @@ func AddOrganization(stub shim.ChaincodeStubInterface, args []string) error {
 	return shim.Success(nil)
 }
 
-func QueryOrganizationByKey(stub shim.ChaincodeStubInterface, args []string) (Organization, error) {
+func GetOrganizationByKey(stub shim.ChaincodeStubInterface, orgId string) (Organization, error) {
 	var record Organization
 
-	if len(args) != 1 {
-		return nil, errors.New("queryOrganization所需参数个数：1")
-	}
-	orgId := args[0]
+	// if len(args) != 1 {
+	// 	return nil, errors.New("queryOrganization所需参数个数：1")
+	// }
+	// orgId := args[0]
 
 	// generate compositeKey
 	key, err := stub.CreateCompositeKey(ObjectTypeOrganization, []string{orgId})

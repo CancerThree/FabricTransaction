@@ -152,7 +152,7 @@ func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transac
 			break
 		}
 
-		if canTrans, err := assets[i].CanBeTransfer(tx.FromAccount); !canTrans {
+		if canTrans, err := assets[i].CanBeTransfer(tx.FromPool); !canTrans {
 			if err == nil {
 				continue
 			} else {
