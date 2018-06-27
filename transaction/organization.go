@@ -82,10 +82,10 @@ func AddOrganization(stub shim.ChaincodeStubInterface, args []string) error {
 		return errors.New("putstate failed:" + err.Error())
 	}
 
-	return shim.Success(nil)
+	return nil
 }
 
-func GetOrganizationByKey(stub shim.ChaincodeStubInterface, orgId string) (Organization, error) {
+func GetOrganizationByKey(stub shim.ChaincodeStubInterface, orgId string) (*Organization, error) {
 	var record Organization
 
 	// if len(args) != 1 {
@@ -94,9 +94,9 @@ func GetOrganizationByKey(stub shim.ChaincodeStubInterface, orgId string) (Organ
 	// orgId := args[0]
 
 	// generate compositeKey
-	key, err := stub.CreateCompositeKey(ObjectTypeOrganization, []string{orgId})
+	key, err := stub.CreateCompositeKey(OBJECT_TYPE_ORG, []string{orgId})
 	if err != nil {
-		return nil, errors.New(err.Error())
+		return nil, errors.New("generate key failed:" + err.Error())
 	}
 
 	val, err := stub.GetState(key)
@@ -118,23 +118,23 @@ func GetOrganizationByKey(stub shim.ChaincodeStubInterface, orgId string) (Organ
 	// 	return shim.Error(err.Error())
 	// }
 
-	return record, nil
+	return &record, nil
 }
 
 func (request OrganizationRequest) verifyField() error {
-	if isEmptyStr(request.OrgId) <= 1 {
+	if isEmptyStr(request.OrgId) {
 		return errors.New("OrgId为空")
 	}
-	if isEmptyStr(request.PublicKey) <= 1 {
+	if isEmptyStr(request.PublicKey) {
 		return errors.New("PublicKey为空")
 	}
-	if isEmptyStr(request.SignPublicKey) <= 1 {
+	if isEmptyStr(request.SignPublicKey) {
 		return errors.New("SignPublicKey为空")
 	}
-	if isEmptyStr(request.ReqOrgId) <= 1 {
+	if isEmptyStr(request.ReqOrgId) {
 		return errors.New("ReqOrgId为空")
 	}
-	if isEmptyStr(request.ReqSign) <= 1 {
+	if isEmptyStr(request.ReqSign) {
 		return errors.New("ReqSign为空")
 	}
 	return nil

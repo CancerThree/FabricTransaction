@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"strings"
@@ -37,7 +36,7 @@ func getShaBase64Str(str string) (string, error) {
 }
 
 //解签名交易数据
-func unsignEncryptData(decryptKey []byte, signedStr string) ([]byte, error) {
+func decryptRsaBase64Str(decryptKey []byte, signedStr string) ([]byte, error) {
 	bytesData, err := decryptBase64Str(signedStr)
 	if err != nil {
 		return nil, err
@@ -99,10 +98,9 @@ func decryptData(decryptKey []byte, encryptedData []byte) ([]byte, error) {
 }
 
 func isEmptyStr(str string) bool {
-	if str == nil {
-		return true
-	}
-
+	// if str == nil {
+	// 	return true
+	// }
 	return strings.Trim(str, " ") == ""
 }
 
@@ -110,48 +108,48 @@ func isEmptyStr(str string) bool {
 	获取发起交易机构的MspId
 */
 func getMspId(stub shim.ChaincodeStubInterface) (string, error) {
-	crtOrg, err := getCrtOrg(stub)
+	mspId, _, err := getCreatorInfo(stub)
 	if err != nil {
-		return "undefined", err
+		return "", errors.New("get mspid failed:" + err.Error())
 	}
-	return crtOrg.MspId, nil
+	return mspId, nil
 }
 
-/*
-	获取发起交易机构
-*/
-func getCrtOrg(stub shim.ChaincodeStubInterface) (*OrgAuth, error) {
-	_, cert, err := getCreatorInfo(stub)
-	if err != nil {
-		return nil, err
-	}
+// /*
+// 	获取发起交易机构
+// */
+// func getCrtOrg(stub shim.ChaincodeStubInterface) (*OrgAuth, error) {
+// 	_, cert, err := getCreatorInfo(stub)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	resultsIterator, err := stub.GetStateByPartialCompositeKey(ObjectTypeOrgAuth, []string{})
-	if err != nil {
-		return nil, err
-	}
+// 	resultsIterator, err := stub.GetStateByPartialCompositeKey(ObjectTypeOrgAuth, []string{})
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	for i := 0; resultsIterator.HasNext(); i++ {
-		response, err := resultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-		key := response.Key
-		val, err := stub.GetState(key)
-		if err != nil {
-			return nil, err
-		}
-		var orgAuth OrgAuth
-		err = json.Unmarshal(val, &orgAuth)
-		if err != nil {
-			return nil, err
-		}
-		if orgAuth.Cert == cert {
-			return &orgAuth, nil
-		}
-	}
-	return nil, errors.New("机构未初始化")
-}
+// 	for i := 0; resultsIterator.HasNext(); i++ {
+// 		response, err := resultsIterator.Next()
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		key := response.Key
+// 		val, err := stub.GetState(key)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		var orgAuth OrgAuth
+// 		err = json.Unmarshal(val, &orgAuth)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		if orgAuth.Cert == cert {
+// 			return &orgAuth, nil
+// 		}
+// 	}
+// 	return nil, errors.New("机构未初始化")
+// }
 
 /*
 	获取发起交易机构的父机构mspId和发起交易机构的证书

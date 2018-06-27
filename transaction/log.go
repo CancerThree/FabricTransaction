@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 
@@ -18,6 +17,8 @@ type OrgLogAddr struct {
 type OrgPrivateLog struct {
 	FromOrg   string  `json:"fromOrg"`
 	ToOrg     string  `json:"toOrg"`
+	FromPool  string  `json:"fromPool"`
+	ToPool    string  `json:"toPool"`
 	Amount    float64 `json:"amount"`
 	AssetType string  `json:"assetType"`
 	Timestamp string  `json:"timestamp"`
@@ -28,8 +29,8 @@ type OrgPrivateLog struct {
 }
 
 type ChainLog struct {
-	FromAcc    string  `json:"fromAcc"`
-	ToAcc      string  `json:"toAcc"`
+	FromPool   string  `json:"fromPool"`
+	ToPool     string  `json:"toPool"`
 	Value      float64 `json:"value"`
 	AssetType  string  `json:"assetType"`
 	Timestamp  string  `json:"timestamp"`
@@ -42,7 +43,7 @@ func GetPrivateLogByAddrJsonStr(stub shim.ChaincodeStubInterface, arrayJsonStr s
 
 	err := json.Unmarshal([]byte(arrayJsonStr), &addrs)
 	if err != nil {
-		return errors.New("unmarshal array str failed:" + err.Error())
+		return nil, errors.New("unmarshal array str failed:" + err.Error())
 	}
 
 	return GetPrivateLogByAddrs(stub, addrs)
@@ -51,7 +52,7 @@ func GetPrivateLogByAddrJsonStr(stub shim.ChaincodeStubInterface, arrayJsonStr s
 func GetPrivateLogByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]OrgPrivateLog, error) {
 	logs := []OrgPrivateLog{}
 
-	for index, addr := range addrs {
+	for _, addr := range addrs {
 		var log OrgPrivateLog
 		val, err := stub.GetState(addr)
 		if err != nil {
@@ -66,7 +67,7 @@ func GetPrivateLogByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]O
 	return logs, nil
 }
 
-func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc AssetPool, opeType string) error {
+func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, assetPool AssetPool, opeType string) error {
 	txId := stub.GetTxID()
 	key := ACCOUNT_LOG_PREFIX + txId
 	val, err := stub.GetState(key)
@@ -82,8 +83,10 @@ func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc Asse
 	}
 
 	log := OrgPrivateLog{
-		FromOrg:   tx.FromPool,
-		ToOrg:     tx.ToPool,
+		FromOrg:   tx.OrgID,
+		ToOrg:     tx.ToOrgID,
+		FromPool:  tx.FromPool,
+		ToPool:    tx.ToPool,
 		Amount:    tx.Amount,
 		AssetType: tx.AssetTypeID,
 		Timestamp: tx.TimeStamp,
@@ -98,27 +101,26 @@ func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, acc Asse
 		return errors.New("marshal log failed:" + err.Error())
 	}
 
-	logStr, err := encryptData2Base64Str([]byte(acc.EncryptKey), logBytes)
+	logStr, err := encryptData2Base64Str([]byte(assetPool.EncryptKey), logBytes)
 	if err != nil {
 		return err
 	}
 
-	if err = stub.PutState(logKey, logStr); err != nil {
+	if err = stub.PutState(logKey, []byte(logStr)); err != nil {
 		return errors.New("putState log failed:" + err.Error())
 	}
 
-	encryptLogKeyByte, err := encryptData([]byte(acc.EncryptKey), []byte(logKey))
+	encryptLogKeyStr, err := encryptData2Base64Str([]byte(assetPool.EncryptKey), []byte(logKey))
 	if err != nil {
 		return err
 	}
-	encryptLogKeyStr := base64.StdEncoding.EncodeToString(encryptLogKeyByte)
 
 	logAddr := OrgLogAddr{
-		OrgID:        acc.OrgID,
+		OrgID:        assetPool.OrgID,
 		EncryptLogID: encryptLogKeyStr,
 		ObjectType:   OBJECT_TYPE_LOG_ADDR,
 		TimeStamp:    tx.TimeStamp}
-	logAddrKey, err := stub.CreateCompositeKey(OBJECT_TYPE_LOG_ADDR, []string{acc.OrgID, encryptLogKeyStr})
+	logAddrKey, err := stub.CreateCompositeKey(OBJECT_TYPE_LOG_ADDR, []string{assetPool.OrgID, encryptLogKeyStr})
 	if err != nil {
 		return errors.New(err.Error())
 	}
@@ -141,8 +143,8 @@ func addChainLog(stub shim.ChaincodeStubInterface, tx Transaction, opeType strin
 	key := CHAIN_LOG_PREFIX + txId
 
 	chainLog := ChainLog{
-		FromAcc:    tx.FromPool,
-		ToAcc:      tx.ToPool,
+		FromPool:   tx.FromPool,
+		ToPool:     tx.ToPool,
 		Value:      tx.Amount,
 		AssetType:  tx.AssetTypeID,
 		Timestamp:  tx.TimeStamp,

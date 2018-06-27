@@ -22,8 +22,8 @@ type Transaction struct {
 	LogInfo       string   `json:"logInfo,omitempty"`
 	ModUser       string   `json:"modUser"`
 
-	ReqSign string `json:"reqSign,omitempty"` //发送机构
-	ReqSign string `json:"reqSign,omitempty"` //发送机构签名
+	ReqOrgId string `json:"reqOrgId,omitempty"` //发送机构
+	ReqSign  string `json:"reqSign,omitempty"`  //发送机构签名
 }
 
 func TransferByJsonStr(stub shim.ChaincodeStubInterface, str string) error {
@@ -81,37 +81,37 @@ func Transfer(stub shim.ChaincodeStubInterface, tx Transaction) error {
 	}
 
 	//验证所用地址是否合法
-	val, err := stub.GetState(tx.NewAddr[0])
+	val, err := stub.GetState(tx.NewAssetAddrs[0])
 	if err != nil {
-		return errors.New("GetState new addr[0]" + tx.NewAddr[0] + " failed: " + err.Error())
+		return errors.New("GetState new addr[0]" + tx.NewAssetAddrs[0] + " failed: " + err.Error())
 	}
 	if val != nil {
-		return errors.New("addr has been used:" + tx.NewAddr[0])
+		return errors.New("addr has been used:" + tx.NewAssetAddrs[0])
 	}
-	val, err = stub.GetState(tx.NewAddr[1])
+	val, err = stub.GetState(tx.NewAssetAddrs[1])
 	if err != nil {
-		return errors.New("GetState new addr[1]" + tx.NewAddr[1] + " failed: " + err.Error())
+		return errors.New("GetState new addr[1]" + tx.NewAssetAddrs[1] + " failed: " + err.Error())
 	}
 	if val != nil {
-		return errors.New("addr has been used:" + tx.NewAddr[1])
+		return errors.New("addr has been used:" + tx.NewAssetAddrs[1])
 	}
 
 	//验证资金池
-	fromPool, err := getAssetPoolById(tx.FromPool)
+	fromPool, err := getAssetPoolById(stub, tx.FromPool)
 	if err != nil {
 		return errors.New("fromPool verified failed:" + err.Error())
 	}
-	err = verifyAccountOfOrg(tx.OrgID, fromPool)
+	err = verifyAssetPoolOfOrg(tx.OrgID, *fromPool)
 	if err != nil {
 		return err
 	}
 
-	toPool, err := getAssetPoolById(tx.ToPool)
+	toPool, err := getAssetPoolById(stub, tx.ToPool)
 	if err != nil {
 		return errors.New("toPool verified failed:" + err.Error())
 	}
 
-	if err = transferAssets(stub, assets, tx, fromPool, toPool); err != nil {
+	if err = transferAssets(stub, assets, tx, *fromPool, *toPool); err != nil {
 		return errors.New("transfer failed.\r\n" + err.Error())
 	}
 
@@ -125,11 +125,11 @@ func IssueAssetByJsonStr(stub shim.ChaincodeStubInterface, str string) error {
 	// if len(args) != 1 {
 	// 	return errors.New("issue only need 1 argument")
 	// }
-	err := json.Unmarshal([]byte(args[0]), &tx)
+	err := json.Unmarshal([]byte(str), &tx)
 	if err != nil {
 		return errors.New("unmarshal tx failed:" + err.Error())
 	}
-
+	return IssueAsset(stub, tx)
 }
 
 func IssueAsset(stub shim.ChaincodeStubInterface, tx Transaction) error {
@@ -157,12 +157,12 @@ func IssueAsset(stub shim.ChaincodeStubInterface, tx Transaction) error {
 	}
 
 	//验证账户
-	account, err := getAccountById(tx.ToPool)
+	assetPool, err := getAssetPoolById(stub, tx.ToPool)
 	if err != nil {
-		return errors.New("verify account id failed:" + err.Error())
+		return errors.New("verify assetPool id failed:" + err.Error())
 	}
 
-	err = addAssetUnderAccount(stub, account, tx.AssetAddrs[0], tx.Amount, tx.AssetTypeID)
+	err = addAssetToPool(stub, *assetPool, tx.AssetAddrs[0], tx.Amount, tx.AssetTypeID)
 	if err != nil {
 		return errors.New("add asset failed:" + err.Error())
 	}

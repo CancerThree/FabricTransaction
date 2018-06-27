@@ -56,7 +56,7 @@ func InitAssetPool(stub shim.ChaincodeStubInterface, assetPoolReq AssetPoolReque
 		AssetpoolId:   assetPoolReq.AssetpoolId,
 		AssetpoolType: assetPoolReq.AssetpoolType,
 		OrgID:         assetPoolReq.AssetpoolOwner,
-		unsignKey:     assetPoolReq.UnsignKey,
+		UnsignKey:     assetPoolReq.UnsignKey,
 		EncryptKey:    assetPoolReq.EncryptKey,
 		ObjectType:    OBJECT_TYPE_ASEETPOOL}
 
@@ -80,14 +80,14 @@ func verifyAssetPoolOfOrg(orgId string, assetPool AssetPool) error {
 	if err != nil {
 		return errors.New("calc hash failed:" + err.Error())
 	}
-	if assetPool.attachHash != hash {
+	if assetPool.AttachHash != hash {
 		return errors.New("hash verified failed:" + orgId + "," + assetPool.AssetpoolId)
 	}
 
 	return nil
 }
 
-func getAssetPoolById(stub shim.ChaincodeStubInterface, key string) (AssetPool, error) {
+func getAssetPoolById(stub shim.ChaincodeStubInterface, key string) (*AssetPool, error) {
 	var assetPool AssetPool
 	if isEmptyStr(key) {
 		return nil, errors.New("addr cannot be empty")
@@ -103,7 +103,7 @@ func getAssetPoolById(stub shim.ChaincodeStubInterface, key string) (AssetPool, 
 	if err != nil {
 		return nil, errors.New("unmarshal assetPool failed:" + err.Error())
 	}
-	return acc, nil
+	return &assetPool, nil
 }
 
 func addAssetToPool(stub shim.ChaincodeStubInterface, assetPool AssetPool, assetAddr string, amount float64, typeId string) error {
@@ -210,11 +210,11 @@ func (request *AssetPoolRequest) verifyField() error {
 	if isEmptyStr(request.AssetpoolOwner) {
 		return errors.New("AssetpoolOwner为空")
 	}
-	if isEmptyStr(request.PublicKey) {
-		return errors.New("PublicKey为空")
+	if isEmptyStr(request.EncryptKey) {
+		return errors.New("EncryptKey为空")
 	}
-	if isEmptyStr(request.SignPublicKey) {
-		return errors.New("SignPublicKey为空")
+	if isEmptyStr(request.UnsignKey) {
+		return errors.New("UnsignKey为空")
 	}
 	if isEmptyStr(request.ReqOrgId) {
 		return errors.New("ReqOrgId为空")
