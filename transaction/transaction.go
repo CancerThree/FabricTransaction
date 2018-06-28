@@ -58,7 +58,7 @@ func Transfer(stub shim.ChaincodeStubInterface, tx Transaction) error {
 	}
 
 	// 验签
-	err = CheckJSONObjectSignature(tx, org.SignPublicKey)
+	err = CheckJSONObjectSignature(&tx, org.SignPublicKey)
 	if err != nil {
 		return errors.New("check signature failed:" + err.Error())
 	}
@@ -97,7 +97,7 @@ func Transfer(stub shim.ChaincodeStubInterface, tx Transaction) error {
 	}
 
 	//验证资金池
-	fromPool, err := getAssetPoolById(stub, tx.FromPool)
+	fromPool, err := GetAssetPoolById(stub, tx.FromPool)
 	if err != nil {
 		return errors.New("fromPool verified failed:" + err.Error())
 	}
@@ -106,7 +106,7 @@ func Transfer(stub shim.ChaincodeStubInterface, tx Transaction) error {
 		return err
 	}
 
-	toPool, err := getAssetPoolById(stub, tx.ToPool)
+	toPool, err := GetAssetPoolById(stub, tx.ToPool)
 	if err != nil {
 		return errors.New("toPool verified failed:" + err.Error())
 	}
@@ -157,7 +157,7 @@ func IssueAsset(stub shim.ChaincodeStubInterface, tx Transaction) error {
 	}
 
 	//验证账户
-	assetPool, err := getAssetPoolById(stub, tx.ToPool)
+	assetPool, err := GetAssetPoolById(stub, tx.ToPool)
 	if err != nil {
 		return errors.New("verify assetPool id failed:" + err.Error())
 	}

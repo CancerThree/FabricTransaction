@@ -8,36 +8,38 @@ import (
 )
 
 type AssetPoolRequest struct {
-	AssetpoolId    string `json:"assetpoolId,omitempty"`    //资产库ID 主键
-	AssetpoolType  string `json:"assetpoolType,omitempty"`  //资产库类型
-	AssetpoolOwner string `json:"assetpoolOwner,omitempty"` //资产库所属机构
-	UnsignKey      string `json:"unsignKey"`                //验签用-生成的privateKey
-	EncryptKey     string `json:"encryptKey"`               //加密用-publicKey
-	ReqOrgId       string `json:"reqOrgId,omitempty"`       //发送机构
-	ReqSign        string `json:"reqSign,omitempty"`        //发送机构签名
+	AssetpoolId   string `json:"assetpoolId"`    //资产库ID 主键
+	AssetpoolType string `json:"assetpoolType"`  //资产库类型
+	OrgID         string `json:"assetpoolOwner"` //资产库所属机构
+	EncryptKey    string `json:"publicKey"`      //加密用-publicKey
+	UnsignKey     string `json:"signPublicKey"`  //验签用-生成的privateKey
+
+	ReqOrgId string `json:"reqOrgId,omitempty"` //发送机构
+	ReqSign  string `json:"reqSign,omitempty"`  //发送机构签名
 }
 
 type AssetPool struct {
 	AssetpoolId   string `json:"assetpoolId"`
 	AssetpoolType string `json:"assetpoolType"` //资产库类型
-	UnsignKey     string `json:"unsignKey"`     //验签用-生成的privateKey
-	EncryptKey    string `json:"encryptKey"`    //加密用-publicKey
+	UnsignKey     string `json:"signPublicKey"` //验签用-生成的privateKey
+	EncryptKey    string `json:"publicKey"`     //加密用-publicKey
 	AttachHash    string `json:"attachHash"`
-	OrgID         string `json:"orgId"`
+	OrgID         string `json:"assetpoolOwner"`
 	ObjectType    string `json:"objectType"`
 	// MspId          string `json:"mspId,omitempty"`          //所属机构 维护机构
 }
 
-func AddAssetPoolFromJsonStr(stub shim.ChaincodeStubInterface, args []string) error {
-	if len(args) != 1 {
-		return errors.New("invalid argument: only need 1 argument")
-	}
-
+func AddAssetPoolByJsonStr(stub shim.ChaincodeStubInterface, str string) error {
+	// if len(args) != 1 {
+	// 	return errors.New("invalid argument: only need 1 argument")
+	// }
+	// return errors.New(str)
 	var assetPoolReq AssetPoolRequest
-	err := json.Unmarshal([]byte(args[0]), &assetPoolReq)
+	err := json.Unmarshal([]byte(str), &assetPoolReq)
 	if err != nil {
 		return errors.New("unmarshal assetPool request str failed:" + err.Error())
 	}
+
 	return InitAssetPool(stub, assetPoolReq)
 }
 
@@ -46,8 +48,12 @@ func InitAssetPool(stub shim.ChaincodeStubInterface, assetPoolReq AssetPoolReque
 		return err
 	}
 
-	unsignKey := assetPoolReq.UnsignKey
-	err := CheckJSONObjectSignature(assetPoolReq, unsignKey)
+	// unsignKey := assetPoolReq.UnsignKey
+	org, err := GetOrganizationByKey(stub, assetPoolReq.OrgID)
+	if err != nil {
+		return errors.New("get org failed:" + err.Error())
+	}
+	err = CheckJSONObjectSignature(&assetPoolReq, org.SignPublicKey)
 	if err != nil {
 		return errors.New("verify sign failed:" + err.Error())
 	}
@@ -55,7 +61,7 @@ func InitAssetPool(stub shim.ChaincodeStubInterface, assetPoolReq AssetPoolReque
 	assetPool := AssetPool{
 		AssetpoolId:   assetPoolReq.AssetpoolId,
 		AssetpoolType: assetPoolReq.AssetpoolType,
-		OrgID:         assetPoolReq.AssetpoolOwner,
+		OrgID:         assetPoolReq.OrgID,
 		UnsignKey:     assetPoolReq.UnsignKey,
 		EncryptKey:    assetPoolReq.EncryptKey,
 		ObjectType:    OBJECT_TYPE_ASEETPOOL}
@@ -67,7 +73,13 @@ func InitAssetPool(stub shim.ChaincodeStubInterface, assetPoolReq AssetPoolReque
 	assetPool.AttachHash = hash
 
 	assetPoolByte, _ := json.Marshal(assetPool)
-	err = stub.PutState(assetPool.AssetpoolId, assetPoolByte)
+
+	key, err := stub.CreateCompositeKey(OBJECT_TYPE_ASEETPOOL, []string{assetPool.AssetpoolId})
+	if err != nil {
+		return errors.New(err.Error())
+	}
+
+	err = stub.PutState(key, assetPoolByte)
 	if err != nil {
 		return err
 	}
@@ -87,11 +99,17 @@ func verifyAssetPoolOfOrg(orgId string, assetPool AssetPool) error {
 	return nil
 }
 
-func getAssetPoolById(stub shim.ChaincodeStubInterface, key string) (*AssetPool, error) {
+func GetAssetPoolById(stub shim.ChaincodeStubInterface, id string) (*AssetPool, error) {
 	var assetPool AssetPool
-	if isEmptyStr(key) {
+	if isEmptyStr(id) {
 		return nil, errors.New("addr cannot be empty")
 	}
+
+	key, err := stub.CreateCompositeKey(OBJECT_TYPE_ASEETPOOL, []string{id})
+	if err != nil {
+		return nil, err
+	}
+
 	val, err := stub.GetState(key)
 	if err != nil {
 		return nil, errors.New("query assetPool failed:" + key + ",detail:" + err.Error())
@@ -207,7 +225,7 @@ func (request *AssetPoolRequest) verifyField() error {
 	if isEmptyStr(request.AssetpoolType) {
 		return errors.New("AssetpoolType为空")
 	}
-	if isEmptyStr(request.AssetpoolOwner) {
+	if isEmptyStr(request.OrgID) {
 		return errors.New("AssetpoolOwner为空")
 	}
 	if isEmptyStr(request.EncryptKey) {

@@ -18,26 +18,33 @@ type OrganizationRequest struct {
 
 type Organization struct {
 	OrgId         string `json:"orgId,omitempty"`         //机构ID 主键
-	PublicKey     string `json:"publicKey,omitempty"`     //公钥
+	PublicKey     string `json:"publicKey,omitempty"`     //公钥---暂时无用
 	SignPublicKey string `json:"signPublicKey,omitempty"` //签名公钥
 
 	ObjectType string `json:"objectType,omitempty"` //结构体类型
 	MspId      string `json:"mspId,omitempty"`      //创建的节点机构
 }
 
-//添加机构
-func AddOrganization(stub shim.ChaincodeStubInterface, args []string) error {
+func AddOrganizationByJsonStr(stub shim.ChaincodeStubInterface, str string) error {
 	var request OrganizationRequest
-	//验证参数
-	if len(args) != 1 {
-		return errors.New("addOrganization所需参数个数：1")
-	}
-	err := json.Unmarshal([]byte(args[0]), &request)
+
+	err := json.Unmarshal([]byte(str), &request)
 	if err != nil {
 		return errors.New("unmarshal args failed:" + err.Error())
 	}
+	return AddOrganization(stub, request)
+}
+
+//添加机构
+func AddOrganization(stub shim.ChaincodeStubInterface, request OrganizationRequest) error {
+	// var request OrganizationRequest
+	// //验证参数
+	// if len(args) != 1 {
+	// 	return errors.New("addOrganization所需参数个数：1")
+	// }
+
 	// 验证字段
-	err = request.verifyField()
+	err := request.verifyField()
 	if err != nil {
 		return err
 	}
