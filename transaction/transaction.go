@@ -8,7 +8,7 @@ import (
 )
 
 type Transaction struct {
-	ToOrgID   string `json:"toOrgId"` //放链下存放机构日志
+	// ToOrgID   string `json:"toOrgId"` //放链下存放机构日志
 	ToPool    string `json:"toPool"`
 	FromPool  string `json:"fromPool"`
 	TimeStamp string `json:"timeStamp"`
@@ -34,10 +34,10 @@ func TransferByJsonStr(stub shim.ChaincodeStubInterface, str string) error {
 		return errors.New("unmarshal transaction str failed" + err.Error())
 	}
 
-	return Transfer(stub, tx)
+	return Transfer(stub, tx, str)
 }
 
-func Transfer(stub shim.ChaincodeStubInterface, tx Transaction) error {
+func Transfer(stub shim.ChaincodeStubInterface, tx Transaction, signedStr string) error {
 	// var tx Transaction
 
 	// //TODO 签名验证 && 验证OrgId
@@ -48,7 +48,7 @@ func Transfer(stub shim.ChaincodeStubInterface, tx Transaction) error {
 
 	//验证空字段
 	if isEmptyStr(tx.AssetTypeID) || isEmptyStr(tx.ModUser) || isEmptyStr(tx.OrgID) ||
-		isEmptyStr(tx.TimeStamp) || isEmptyStr(tx.ToOrgID) {
+		isEmptyStr(tx.TimeStamp) {
 		return errors.New("assetType, timestamp, moduser, orgId cannot be null")
 	}
 
@@ -58,14 +58,14 @@ func Transfer(stub shim.ChaincodeStubInterface, tx Transaction) error {
 	}
 
 	// 验签
-	err = CheckJSONObjectSignature(&tx, org.SignPublicKey)
+	err = CheckJSONObjectSignatureString(signedStr, org.SignPublicKey)
 	if err != nil {
 		return errors.New("check signature failed:" + err.Error())
 	}
 
 	assetsAddrs := tx.AssetAddrs[:]
 	// 从解密后地址中查询资产
-	assets, err := getAssetsByAddrs(stub, assetsAddrs)
+	assets, err := GetAssetsByAddrs(stub, assetsAddrs)
 	if err != nil {
 		return errors.New("find assets failed")
 	}
@@ -133,6 +133,7 @@ func IssueAssetByJsonStr(stub shim.ChaincodeStubInterface, str string) error {
 }
 
 func IssueAsset(stub shim.ChaincodeStubInterface, tx Transaction) error {
+
 	//验证字段是否为空
 	if isEmptyStr(tx.OrgID) || isEmptyStr(tx.AssetTypeID) || isEmptyStr(tx.ModUser) ||
 		isEmptyStr(tx.TimeStamp) {
@@ -161,10 +162,20 @@ func IssueAsset(stub shim.ChaincodeStubInterface, tx Transaction) error {
 	if err != nil {
 		return errors.New("verify assetPool id failed:" + err.Error())
 	}
+	err = verifyAssetPoolOfOrg(tx.OrgID, *assetPool)
+	if err != nil {
+		return err
+	}
 
-	err = addAssetToPool(stub, *assetPool, tx.AssetAddrs[0], tx.Amount, tx.AssetTypeID)
+	// return errors.New("wenjie12" + tx.AssetAddrs[0] + " " + tx.AssetTypeID)
+	err = addAssetToPool(stub, *assetPool, tx.NewAssetAddrs[0], tx.Amount, tx.AssetTypeID)
 	if err != nil {
 		return errors.New("add asset failed:" + err.Error())
+	}
+
+	err = addChainLog(stub, tx, TX_TYPE_ISSUE)
+	if err != nil {
+		return err
 	}
 
 	return nil

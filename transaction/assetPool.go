@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 
@@ -24,8 +25,8 @@ type AssetPool struct {
 	UnsignKey     string `json:"signPublicKey"` //验签用-生成的privateKey
 	EncryptKey    string `json:"publicKey"`     //加密用-publicKey
 	AttachHash    string `json:"attachHash"`
-	OrgID         string `json:"assetpoolOwner"`
-	ObjectType    string `json:"objectType"`
+	// OrgID         string `json:"assetpoolOwner"`
+	ObjectType string `json:"objectType"`
 	// MspId          string `json:"mspId,omitempty"`          //所属机构 维护机构
 }
 
@@ -61,12 +62,12 @@ func InitAssetPool(stub shim.ChaincodeStubInterface, assetPoolReq AssetPoolReque
 	assetPool := AssetPool{
 		AssetpoolId:   assetPoolReq.AssetpoolId,
 		AssetpoolType: assetPoolReq.AssetpoolType,
-		OrgID:         assetPoolReq.OrgID,
-		UnsignKey:     assetPoolReq.UnsignKey,
-		EncryptKey:    assetPoolReq.EncryptKey,
-		ObjectType:    OBJECT_TYPE_ASEETPOOL}
+		// OrgID:         assetPoolReq.OrgID,
+		UnsignKey:  assetPoolReq.UnsignKey,
+		EncryptKey: assetPoolReq.EncryptKey,
+		ObjectType: OBJECT_TYPE_ASEETPOOL}
 
-	hash, err := getShaBase64Str(assetPool.OrgID + assetPool.AssetpoolId)
+	hash, err := getShaBase64Str(assetPoolReq.OrgID + assetPool.AssetpoolId)
 	if err != nil {
 		return errors.New("calc hash failed:" + err.Error())
 	}
@@ -131,7 +132,7 @@ func addAssetToPool(stub shim.ChaincodeStubInterface, assetPool AssetPool, asset
 	}
 
 	encryptedData, err := encryptData([]byte(assetPool.EncryptKey), []byte(assetAddr))
-	encryptedStr, err := getShaBase64Str(string(encryptedData))
+	encryptedStr := base64.StdEncoding.EncodeToString(encryptedData)
 	accountAsset := PoolAsset{
 		PoolID:         assetPool.AssetpoolId,
 		EncryptAssetID: encryptedStr,
@@ -190,27 +191,27 @@ func transferAssets(stub shim.ChaincodeStubInterface, assets []Asset, tx Transac
 	}
 
 	//新建Asset作为转让以及“找零”的资产
-	if err := addAssetToPool(stub, toPool, tx.AssetAddrs[0], tx.Amount, tx.AssetTypeID); err != nil {
+	if err := addAssetToPool(stub, toPool, tx.NewAssetAddrs[0], tx.Amount, tx.AssetTypeID); err != nil {
 		return err
 	}
 	if transferAmount < 0 {
-		if err := addAssetToPool(stub, fromPool, tx.AssetAddrs[1], 0-transferAmount, tx.AssetTypeID); err != nil {
+		if err := addAssetToPool(stub, fromPool, tx.NewAssetAddrs[1], 0-transferAmount, tx.AssetTypeID); err != nil {
 			return err
 		}
 	}
 
 	//填log
-	err := addOrgPrivateLog(stub, tx, fromPool, TX_TYPE_TRANSFER_OUT)
-	if err != nil {
-		return err
-	}
+	// err := addOrgPrivateLog(stub, tx, fromPool, tx.FromPool, TX_TYPE_TRANSFER_OUT)
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = addOrgPrivateLog(stub, tx, toPool, TX_TYPE_TRANSFER_IN)
-	if err != nil {
-		return err
-	}
+	// err = addOrgPrivateLog(stub, tx, toPool, tx.ToPool, TX_TYPE_TRANSFER_IN)
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = addChainLog(stub, tx, TX_TYPE_TRANSFER)
+	err := addChainLog(stub, tx, TX_TYPE_TRANSFER)
 	if err != nil {
 		return err
 	}

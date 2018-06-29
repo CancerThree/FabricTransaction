@@ -71,11 +71,10 @@ func sortAndCountByAmount(assets *[]Asset) float64 {
 }
 
 //查询地址下的所有资产
-func getAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]Asset, error) {
+func GetAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]Asset, error) {
 	// assets := make([]Asset, len(addrs))
 	var assets []Asset
 
-	// 从小到大修改asset
 	for i := 0; i < len(addrs); i++ {
 		var asset Asset
 		val, err := stub.GetState(addrs[i])
@@ -95,12 +94,11 @@ func getAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]Asset
 }
 
 func addAsset(stub shim.ChaincodeStubInterface, accId string, assetAddr string, amount float64, typeId string) error {
-	val, err := stub.GetState(accId)
-	if err != nil {
-		return errors.New("accountId Invalid:" + accId)
-	}
-
-	val, err = stub.GetState(assetAddr)
+	// val, err := stub.GetState(accId)
+	// if err != nil {
+	// 	return errors.New("accountId Invalid:" + accId)
+	// }
+	val, err := stub.GetState(assetAddr)
 	if err != nil {
 		return errors.New("assetAddr Invalid:" + assetAddr)
 	}

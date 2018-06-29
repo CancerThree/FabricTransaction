@@ -67,7 +67,7 @@ func GetPrivateLogByAddrs(stub shim.ChaincodeStubInterface, addrs []string) ([]O
 	return logs, nil
 }
 
-func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, assetPool AssetPool, opeType string) error {
+func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, assetPool AssetPool, orgId string, opeType string) error {
 	txId := stub.GetTxID()
 	key := ACCOUNT_LOG_PREFIX + txId
 	val, err := stub.GetState(key)
@@ -83,8 +83,8 @@ func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, assetPoo
 	}
 
 	log := OrgPrivateLog{
-		FromOrg:   tx.OrgID,
-		ToOrg:     tx.ToOrgID,
+		FromOrg: tx.OrgID,
+		// ToOrg:     tx.ToOrgID,
 		FromPool:  tx.FromPool,
 		ToPool:    tx.ToPool,
 		Amount:    tx.Amount,
@@ -116,11 +116,11 @@ func addOrgPrivateLog(stub shim.ChaincodeStubInterface, tx Transaction, assetPoo
 	}
 
 	logAddr := OrgLogAddr{
-		OrgID:        assetPool.OrgID,
+		OrgID:        orgId,
 		EncryptLogID: encryptLogKeyStr,
 		ObjectType:   OBJECT_TYPE_LOG_ADDR,
 		TimeStamp:    tx.TimeStamp}
-	logAddrKey, err := stub.CreateCompositeKey(OBJECT_TYPE_LOG_ADDR, []string{assetPool.OrgID, encryptLogKeyStr})
+	logAddrKey, err := stub.CreateCompositeKey(OBJECT_TYPE_LOG_ADDR, []string{orgId, encryptLogKeyStr})
 	if err != nil {
 		return errors.New(err.Error())
 	}

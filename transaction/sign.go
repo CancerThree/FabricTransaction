@@ -11,7 +11,28 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
+	"strings"
 )
+
+//验证签名，默认签名字段为ReqSign
+func CheckJSONObjectSignatureString(requestString, publicKey string) error {
+
+	reg, _ := regexp.Compile(",\"reqSign\":\"(.+)\"")
+
+	match := reg.MatchString(requestString)
+	if match {
+		signString := reg.FindString(requestString)
+
+		requestString = strings.Replace(requestString, signString, "", -1)
+		signString = strings.TrimRight(signString, "\"")
+		signString = strings.TrimLeft(signString, ",\"reqSign\":\"")
+		return CheckSignature([]byte(requestString), signString, publicKey)
+	} else {
+		return fmt.Errorf("对象签名属性名[ReqSign]无效")
+	}
+
+}
 
 //验证签名，默认签名字段为ReqSign
 func CheckJSONObjectSignature(obj interface{}, publicKey string) error {

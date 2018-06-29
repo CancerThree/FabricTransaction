@@ -59,15 +59,19 @@ func decryptBase64Str(encryptStr string) ([]byte, error) {
 }
 
 func encryptData(encryptKey []byte, data []byte) ([]byte, error) {
-	block, _ := pem.Decode(encryptKey)
-	if block == nil {
-		return nil, errors.New("decode encrypt key failed, encryptKey bytes:" + string(encryptKey))
-	}
-	pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+	pub, err := ParsePublicKey(string(encryptKey))
 	if err != nil {
-		return nil, errors.New("parse key failed:" + err.Error())
+		return nil, err
 	}
-	pub := pubInterface.(*rsa.PublicKey)
+	// block, _ := pem.Decode(encryptKey)
+	// if block == nil {
+	// 	return nil, errors.New("decode encrypt key failed, encryptKey bytes:" + string(encryptKey))
+	// }
+	// pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+	// if err != nil {
+	// 	return nil, errors.New("parse key failed:" + err.Error())
+	// }
+	// pub := pubInterface.(*rsa.PublicKey)
 
 	//加密
 	encryptedData, err := rsa.EncryptPKCS1v15(rand.Reader, pub, data)
