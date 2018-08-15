@@ -7,6 +7,7 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
+//机构编辑请求结构体
 type OrganizationRequest struct {
 	OrgId         string `json:"orgId,omitempty"`         //机构ID
 	PublicKey     string `json:"publicKey,omitempty"`     //公钥
@@ -16,6 +17,7 @@ type OrganizationRequest struct {
 	ReqSign  string `json:"reqSign,omitempty"`  //发送机构
 }
 
+//机构存储结构体
 type Organization struct {
 	OrgId         string `json:"orgId,omitempty"`         //机构ID 主键
 	PublicKey     string `json:"publicKey,omitempty"`     //公钥---暂时无用

@@ -7,20 +7,22 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
+//资产池地址-资产地址对应结构体，存储加密后资产池内的资产地址
 type PoolAsset struct {
-	PoolID         string `json:"poolId"`
-	EncryptAssetID string `json:"encryptAssetId"`
-	HasSpent       string `json:"hasSpent"`
-	TypeID         string `json:"typeId"`
+	PoolID         string `json:"poolId"`         //资产池地址
+	EncryptAssetID string `json:"encryptAssetId"` //加密后资产地址
+	HasSpent       string `json:"hasSpent"`       //资产有效标识
+	TypeID         string `json:"typeId"`         //资产类型ID
 	ObjectType     string `json:"objectType"`
 }
 
+//资产结构体，存储资产
 type Asset struct {
-	Addr       string  `json:"addr,omitempty"`
-	Value      float64 `json:"value"`
-	TypeID     string  `json:"typeId,omitempty"`
-	AttachHash string  `json:"attachHash,omitempty"`
-	HasSpent   string  `json:"hasSpent,omitempty"`
+	Addr       string  `json:"addr,omitempty"`       //资产地址，使用GUID，GUID由外部传入
+	Value      float64 `json:"value"`                //资产值
+	TypeID     string  `json:"typeId,omitempty"`     //资产类型ID，一般对应产品证券ID
+	AttachHash string  `json:"attachHash,omitempty"` //MSPID+Addr的哈希值，用于验证资产归属
+	HasSpent   string  `json:"hasSpent,omitempty"`   //资产有效标识
 	ObjectType string  `json:"objectType"`
 }
 

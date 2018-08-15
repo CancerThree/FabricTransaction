@@ -8,21 +8,23 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
+//资产池新建请求报文结构体
 type AssetPoolRequest struct {
 	AssetpoolId   string `json:"assetpoolId"`    //资产库ID 主键
 	AssetpoolType string `json:"assetpoolType"`  //资产库类型
 	OrgID         string `json:"assetpoolOwner"` //资产库所属机构
 	EncryptKey    string `json:"publicKey"`      //加密用-publicKey
-	UnsignKey     string `json:"signPublicKey"`  //验签用-生成的privateKey
+	UnsignKey     string `json:"signPublicKey"`  //验签用-生成的publicKey
 
 	ReqOrgId string `json:"reqOrgId,omitempty"` //发送机构
 	ReqSign  string `json:"reqSign,omitempty"`  //发送机构签名
 }
 
+//资产池存储结构体
 type AssetPool struct {
 	AssetpoolId   string `json:"assetpoolId"`
 	AssetpoolType string `json:"assetpoolType"` //资产库类型
-	UnsignKey     string `json:"signPublicKey"` //验签用-生成的privateKey
+	UnsignKey     string `json:"signPublicKey"` //验签用-生成的publicKey
 	EncryptKey    string `json:"publicKey"`     //加密用-publicKey
 	AttachHash    string `json:"attachHash"`
 	// OrgID         string `json:"assetpoolOwner"`

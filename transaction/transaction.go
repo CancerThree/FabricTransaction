@@ -7,20 +7,20 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
+//发行、转让请求结构体
 type Transaction struct {
-	// ToOrgID   string `json:"toOrgId"` //放链下存放机构日志
-	ToPool    string `json:"toPool"`
-	FromPool  string `json:"fromPool"`
-	TimeStamp string `json:"timeStamp"`
+	ToPool    string `json:"toPool"`    //转入资产池ID
+	FromPool  string `json:"fromPool"`  //转出资产池ID
+	TimeStamp string `json:"timeStamp"` //时间戳
 
-	OrgID         string   `json:"orgId"`
-	AssetTypeID   string   `json:"assetTypeId"`
-	Amount        float64  `json:"amount"`
-	TxType        string   `json:"txType"`
-	NewAssetAddrs []string `json:"newAssetAddrs"` //UUID
-	AssetAddrs    []string `json:"assetAddrs"`
-	LogInfo       string   `json:"logInfo,omitempty"`
-	ModUser       string   `json:"modUser"`
+	OrgID         string   `json:"orgId"`             //转出机构
+	AssetTypeID   string   `json:"assetTypeId"`       //资产类型ID
+	Amount        float64  `json:"amount"`            //转让量
+	TxType        string   `json:"txType"`            //交易类型：发行/转让
+	NewAssetAddrs []string `json:"newAssetAddrs"`     //用于存储资产的GUID
+	AssetAddrs    []string `json:"assetAddrs"`        //解密后的资产池下的资产地址
+	LogInfo       string   `json:"logInfo,omitempty"` //交易备注
+	ModUser       string   `json:"modUser"`           //交易操作人
 
 	ReqOrgId string `json:"reqOrgId,omitempty"` //发送机构
 	ReqSign  string `json:"reqSign,omitempty"`  //发送机构签名

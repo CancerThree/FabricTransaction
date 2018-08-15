@@ -28,12 +28,13 @@ type OrgPrivateLog struct {
 	ModUser   string  `json:"modUser"`
 }
 
+//链上公开日志
 type ChainLog struct {
-	FromPool   string  `json:"fromPool"`
-	ToPool     string  `json:"toPool"`
-	Value      float64 `json:"value"`
-	AssetType  string  `json:"assetType"`
-	Timestamp  string  `json:"timestamp"`
+	FromPool   string  `json:"fromPool"`  //转出资产池地址
+	ToPool     string  `json:"toPool"`    //转入资产池地址
+	Value      float64 `json:"value"`     //转让量
+	AssetType  string  `json:"assetType"` //资产类型
+	Timestamp  string  `json:"timestamp"` //时间戳
 	ObjectType string  `json:"objectType"`
 	TxID       string  `json:"txId"`
 }
