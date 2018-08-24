@@ -1,0 +1,4 @@
+package asset
+
+func test() {
+}

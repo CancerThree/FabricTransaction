@@ -26,6 +26,43 @@ type Asset struct {
 	ObjectType string  `json:"objectType"`
 }
 
+type AssetInfo struct {
+	AssetTypeId string  `json:"assetTypeId"` //资产类型ID
+	AssetName   string  `json:"assetName"`   //资产类型名称
+	AssetSymbol string  `json:"assetSymbol"` //资产简称
+	Decimals    string  `json:"decimals"`    //支持的小数点位数
+	TotalSupply float64 `json:"totalSupply"` //总发行金额
+	// ObjectType	string	`json:"objectType"`
+}
+
+func (asset *Asset) getAssetInfo(stub shim.ChaincodeStubInterface) (*AssetInfo, error) {
+	if isEmptyStr(asset.TypeID) {
+		return nil, errors.New("No TypeID")
+	}
+	key, err := stub.CreateCompositeKey(OBJECT_TYPE_ASSET_INFO, []string{asset.TypeID})
+	if err != nil {
+		return nil, err
+	}
+	val, err := stub.GetState(key)
+	if err != nil {
+		return nil, err
+	}
+
+	info := &AssetInfo{}
+	if err := json.Unmarshal(val, info); err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func (asset *Asset) Name(stub shim.ChaincodeStubInterface) (string, error) {
+	info, err := asset.getAssetInfo(stub)
+	if err != nil {
+		return "", err
+	}
+	return info.AssetName, nil
+}
+
 // 判断asset是否可进行转让
 func (asset *Asset) CanBeTransfer(accountId string) (bool, error) {
 	if asset.Value <= 0.0 {
