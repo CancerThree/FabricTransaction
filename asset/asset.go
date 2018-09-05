@@ -3,8 +3,10 @@ package asset
 import (
 	"encoding/json"
 	"errors"
+	"log"
 
-	"github.com/FabricTransaction/transaction/common"
+	"github.com/FabricTransaction/common"
+	"github.com/FabricTransaction/common/securityTool"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
@@ -77,6 +79,30 @@ func GetAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) (*[]Asse
 	return &assets, nil
 }
 
+func (asset *Asset) Store(stub shim.ChaincodeStubInterface) error {
+	err := asset.CheckFields()
+	if err != nil {
+		return err
+	}
+
+	bytes, err := json.Marshal(asset)
+	if err != nil {
+		log.Println(asset)
+		return err
+	}
+
+	key, err := stub.CreateCompositeKey(common.OBJECT_TYPE_ASSET, []string{asset.AssetAddr})
+	if err != nil {
+		return err
+	}
+	err = stub.PutState(key, bytes)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GetSortedAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) (*[]Asset, float64, error) {
 	var assets []Asset
 	sum := float64(0)
@@ -102,20 +128,71 @@ func GetSortedAssetsByAddrs(stub shim.ChaincodeStubInterface, addrs []string) (*
 	return &assets, sum, nil
 }
 
-func (asset *Asset) checkFields() error {
-	// AssetAddr       string  `json:"assetAddr"`
-	// Value           float64 `json:"value"`
-	// AssetTypeID     string  `json:"assetTypeId"`
-	// HasTransfered   bool    `json:"hasTransfered"`
-	// LogInfo         string  `json:"logInfo,omitempty"`
-	// AuthedAssetPool string  `json:"authedAssetPool,omitempty"`
-	// Sign            string  `json:"sign"`
+func (asset *Asset) CheckFields() error {
 	if common.IsEmptyStr(asset.AssetAddr) {
 		return errors.New("assetAddr is empty")
 	}
 	if common.IsEmptyStr(asset.AssetTypeID) {
 		return errors.New("AssetTypeID is empty")
 	}
+	if asset.Value < 0 {
+		return errors.New("invalid value")
+	}
+	if common.IsEmptyStr(asset.Sign) {
+		return errors.New("Sign is empty")
+	}
+	return nil
+}
+
+func (asset *Asset) verifySign(stub shim.ChaincodeStubInterface, poolID string) (bool, error) {
+	if common.IsEmptyStr(asset.Sign) {
+		return false, errors.New("Asset's sign is empty")
+	}
+	if common.IsEmptyStr(asset.AssetAddr) {
+		return false, errors.New("AssetAddr is Empty")
+	}
+	if common.IsEmptyStr(poolID) {
+		return false, errors.New("poolID is Empty")
+	}
+
+	mspID, err := common.GetMspID(stub)
+	if err != nil {
+		return false, err
+	}
+
+	hashStr := mspID + poolID + asset.AssetAddr
+	signStr, err := securityTool.CalcSHA256Base64Str(hashStr)
+	if err != nil {
+		return false, err
+	}
+
+	return signStr == asset.Sign, nil
+}
+
+func (asset *Asset) AddSign(stub shim.ChaincodeStubInterface, poolID string) error {
+	if !common.IsEmptyStr(asset.Sign) {
+		return errors.New("Asset's sign exists")
+	}
+	if common.IsEmptyStr(asset.AssetAddr) {
+		return errors.New("AssetAddr is Empty")
+	}
+	if common.IsEmptyStr(poolID) {
+		return errors.New("poolID is Empty")
+	}
+
+	mspID, err := common.GetMspID(stub)
+	if err != nil {
+		return err
+	}
+
+	hashStr := mspID + poolID + asset.AssetAddr
+	signStr, err := securityTool.CalcSHA256Base64Str(hashStr)
+	if err != nil {
+		return err
+	}
+
+	asset.Sign = signStr
+	return nil
 }
 
 func ascInsert(assets *[]Asset, asset Asset) []Asset {

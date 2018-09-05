@@ -1,3 +1,5 @@
 package assetPool
 
-type UserAssetPool AssetPool
+type UserAssetPool struct {
+	AssetPool
+}
