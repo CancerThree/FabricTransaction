@@ -21,19 +21,17 @@ type Asset struct {
 	// GenerateTime    string  `json:"generateTime"`
 }
 
-type AssetInfo struct {
-	AssetName   string  `json:"assetName"`   //资产类型名称
-	AssetSymbol string  `json:"assetSymbol"` //资产简称
-	Decimals    string  `json:"decimals"`    //支持的小数点位数
-	TotalSupply float64 `json:"totalSupply"` //总发行金额
-}
-
 func (asset *Asset) AddLogInfo() {
 	// TODO
 }
 
-func (asset *Asset) CanTransfer() bool {
-	return asset.Value >= 0 && asset.HasTransfered == false
+func (asset *Asset) CanTransfer(stub shim.ChaincodeStubInterface, poolID string, assetType string) bool {
+	ok, err := asset.verifySign(stub, poolID)
+	if err != nil {
+		log.Println("verify asset failed:" + err.Error())
+		return false
+	}
+	return ok && asset.Value >= 0 && asset.HasTransfered == false && assetType == asset.AssetTypeID
 }
 
 func (asset *Asset) GetAssetInfo(stub shim.ChaincodeStubInterface) (*AssetInfo, error) {

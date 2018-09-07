@@ -14,6 +14,7 @@ type AssetPool struct {
 	AssetPoolAddr string `json:"assetPoolAddr"`
 	AssetPoolType string `json:"assetPoolType"`
 	PublicKey     string `json:"publicKey"`
+	// Hash          string `json:"hash"`
 }
 
 type AssetPoolInterface interface {
@@ -28,6 +29,40 @@ type AssetPoolInterface interface {
 	SetApprovalEvent(stub shim.ChaincodeStubInterface, _to string, _value float64) error
 
 	Issue(stub shim.ChaincodeStubInterface, _value float64, assetTypeInfo ast.AssetInfo) error
+}
+
+func (pool *AssetPool) Init(stub shim.ChaincodeStubInterface, addr string, publicKey string, poolType string) error {
+	pool.AssetPoolAddr = addr
+	pool.AssetPoolType = poolType
+	pool.PublicKey = publicKey
+
+	exist, _, _, err := common.CheckExistByKey(stub, common.OBJECT_TYPE_ASEETPOOL, []string{addr})
+	if err != nil {
+		return err
+	}
+	if exist {
+		return errors.New("asset pool " + addr + " already exists")
+	}
+
+	return pool.Store(stub)
+}
+
+func (pool *AssetPool) Store(stub shim.ChaincodeStubInterface) error {
+	err := pool.VerifyFields()
+	if err != nil {
+		return err
+	}
+
+	bytes, err := json.Marshal(pool)
+	if err != nil {
+		return err
+	}
+	key, err := stub.CreateCompositeKey(common.OBJECT_TYPE_ASEETPOOL, []string{pool.AssetPoolAddr})
+	if err != nil {
+		return err
+	}
+
+	return stub.PutState(key, bytes)
 }
 
 func (pool *AssetPool) Transfer(stub shim.ChaincodeStubInterface, assetType string, _to AssetPool, _value float64) (bool, error) {
@@ -83,7 +118,18 @@ func (pool *AssetPool) Transfer(stub shim.ChaincodeStubInterface, assetType stri
 }
 
 func (pool *AssetPool) Issue(stub shim.ChaincodeStubInterface, _value float64, assetTypeInfo ast.AssetInfo) error {
-	return nil
+	priData, err := stub.GetTransient()
+	if err != nil {
+		return err
+	}
+
+	assetAddr, ok := priData["assetAddr"]
+	if !ok {
+		log.Printf("get assetAddr failed, priData is %s", priData)
+		return errors.New("get assetAddr failed: " + err.Error())
+	}
+
+	return pool.GenerateAndAddAsset(stub, string(assetAddr), _value, assetTypeInfo.AssetTypeID)
 }
 
 func (pool *AssetPool) AddAsset(stub shim.ChaincodeStubInterface, asset *ast.Asset) error {
@@ -128,9 +174,15 @@ func (pool *AssetPool) BurnAssets(stub shim.ChaincodeStubInterface, assetType st
 	}
 
 	var burnAssetAddrArray []string
-	encryptedAddrs, ok := priData["encryptedAddrs"]
+	encryptedAddrsBytes, ok := priData["encryptedAddrs"]
 	if !ok {
 		return nil, errors.New("no encryptedAddrs")
+	}
+	encryptedAddrs := []string{}
+	err = json.Unmarshal(encryptedAddrsBytes, &encryptedAddrs)
+	if err != nil {
+		log.Println("unmarhsal encryptedAddrs failed: %s", encryptedAddrsBytes)
+		return nil, err
 	}
 
 	if len(assets) < 1 {
@@ -139,7 +191,7 @@ func (pool *AssetPool) BurnAssets(stub shim.ChaincodeStubInterface, assetType st
 	}
 
 	for i, v := range assets {
-		if !v.CanTransfer() {
+		if !v.CanTransfer(stub, pool.AssetPoolAddr, assetType) {
 			continue
 		}
 		if _value <= 0 {
@@ -156,6 +208,11 @@ func (pool *AssetPool) BurnAssets(stub shim.ChaincodeStubInterface, assetType st
 	}
 	if _value > 0 {
 		return nil, errors.New("poor balance")
+	}
+
+	err = pool.BurnAssetAddr(stub, burnAssetAddrArray)
+	if err != nil {
+		return nil, err
 	}
 
 	if _value < 0 {
@@ -192,6 +249,19 @@ func (pool *AssetPool) BurnAssetAddr(stub shim.ChaincodeStubInterface, encryptAd
 		if err = addr.Burn(stub); err != nil {
 			return errors.New("burn " + v + " failed:" + err.Error())
 		}
+	}
+	return nil
+}
+
+func (pool *AssetPool) VerifyFields() error {
+	if common.IsEmptyStr(pool.AssetPoolAddr) {
+		return errors.New("assetPool's addr is empty")
+	}
+	if common.IsEmptyStr(pool.AssetPoolType) {
+		return errors.New("assetPool's type is empty")
+	}
+	if common.IsEmptyStr(pool.PublicKey) {
+		return errors.New("assetPool's publicKey is empty")
 	}
 	return nil
 }

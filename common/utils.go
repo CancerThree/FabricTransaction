@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"strings"
@@ -20,6 +21,22 @@ func GetMspID(stub shim.ChaincodeStubInterface) (string, error) {
 		return "", errors.New("get mspid failed:" + err.Error())
 	}
 	return mspId, nil
+}
+
+func GetDataByKey(stub shim.ChaincodeStubInterface, objType string, addr []string, data interface{}) error {
+	exists, _, val, err := CheckExistByKey(stub, objType, addr)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.New("do not exist")
+	}
+
+	err = json.Unmarshal(val, data)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func CheckExistByKey(stub shim.ChaincodeStubInterface, objType string, keys []string) (bool, string, []byte, error) {
